@@ -1,0 +1,22 @@
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: shellcheck
+        run: shellcheck -S warning scripts/*.sh
+      # Herdr is not on CI: every layout, theme and key map must parse, and every module of the mod must be valid JavaScript.
+      - name: JSON
+        run: for f in layouts/*.json themes/*.json keys.json mods/flow/mod.json; do jq empty "$f" || { echo "::error file=$f::not valid JSON"; exit 1; }; done
+      - run: for f in mods/flow/*.js; do node --input-type=module --check < "$f" || { echo "$f"; exit 1; }; done
+      - run: node --experimental-vm-modules --test tests/*.test.mjs
