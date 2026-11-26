@@ -12,12 +12,12 @@ set -eu
 repo=$(cd "$(dirname "$0")/.." && pwd)
 home=${HERDR_APP_HOME:-$HOME/.config/herdr-app}
 herdr_app=${HERDR_APP_BIN:-$HOME/.local/bin/herdr-app}
-mode=link
+mode="link"
 switch=0
 uninstall=0
 for arg in "$@"; do
   case "$arg" in
-    --copy) mode=copy ;;
+    --copy) mode="copy" ;;
     --switch) switch=1 ;;
     --uninstall) uninstall=1 ;;
     *) sed -n '2,10p' "$0"; exit 1 ;;
@@ -62,7 +62,7 @@ command -v jq >/dev/null 2>&1 || { echo "install.sh needs jq" >&2; exit 1; }
 
 if [ "$uninstall" = 1 ]; then
   for rel in $(owned); do
-    if [ -L "$home/$rel" ] || [ -e "$home/$rel" ]; then rm -rf "$home/$rel"; fi
+    if [ -L "$home/$rel" ] || [ -e "$home/$rel" ]; then rm -rf "${home:?}/$rel"; fi
   done
   if [ -f "$home/keys.json" ]; then
     cp "$home/keys.json" "$home/keys.json.bak-flow"
@@ -92,5 +92,5 @@ echo "$verb Flow's layouts, mod and themes into $home"
 [ -f "$home/cockpit.json" ] || echo "cockpit is not installed in this Herdr home: Flow's Home shows how to install it"
 
 if [ "$switch" = 1 ]; then
-  HERDR_APP_HOME="$home" "$herdr_app" do layout.switch '{"name": "flow"}' >/dev/null && echo "switched the window to Flow"
+  HERDR_APP_HOME="$home" "$herdr_app" "do" layout.switch '{"name": "flow"}' >/dev/null && echo "switched the window to Flow"
 fi
