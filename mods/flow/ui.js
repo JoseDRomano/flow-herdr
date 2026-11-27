@@ -62,11 +62,30 @@ export function tokens() {
     sky: Boolean(t.sky_floor),
     skyInk: t.sky_ink ?? t.muted,
     dawn: /^#[0-9a-f]{6}(?!00)[0-9a-f]{2}$|^#[0-9a-f]{6}$/i.test(t.sky_floor ?? "#00000000"),
+    // The dawn's own colours, for the chrome that breathes with it.
+    skyRise: t.sky_rise ?? t.solid,
+    skyFrom: t.sky_rise_from ?? "#00000000",
   };
 }
 
 /** Whether the theme's cards are see-through: its background carries an alpha under ff. */
 const glass = (t) => /^#[0-9a-f]{6}(?!ff)[0-9a-f]{2}$/i.test(t?.background ?? "");
+
+/**
+ * The dawn breathing over the window's chrome: a warm gradient from the bottom edge that glows while an agent waits on
+ * you, or null on any other look. Put it under a screen's own content, full width or height.
+ */
+export function SkyGlow(id, k, { from = 0.12, to = 0.45, period = 2400 } = {}) {
+  if (!k.dawn || !k.skyRise) return null;
+  const fill = PathBuilder.fill().move_to("0%", "0%").line_to("100%", "0%").line_to("100%", "100%").line_to("0%", "100%").close();
+  const sky = Background.linear_gradient(180, Background.stop(alpha(k.skyFrom, 1), 0), Background.stop(k.skyRise, 1));
+  return div()
+    .id(id)
+    .absolute()
+    .inset_0()
+    .loop("opacity", { from, to, period })
+    .child(window.paint_path(fill.build(), sky).absolute().inset_0());
+}
 
 /** The colour without its alpha. */
 const opaque = (color) => (/^#[0-9a-f]{8}$/i.test(color ?? "") ? color.slice(0, 7) : color);
@@ -411,7 +430,7 @@ export function Table(id, { columns, rows, sort, onSort }) {
 }
 
 /** Nothing to show: an icon in a muted tile, a title, a line, an action. */
-export function Empty({ icon = "inbox", title, description, action } = {}) {
+export function Empty({ icon = "inbox", title, description, action, iconColor } = {}) {
   const k = tokens();
   return v_flex()
     .flex_1()
@@ -419,7 +438,7 @@ export function Empty({ icon = "inbox", title, description, action } = {}) {
     .justify_center()
     .gap(12)
     .p(32)
-    .child(h_flex().size(40).rounded(RADIUS.lg).items_center().justify_center().bg(k.muted).child(Icon(icon, { size: 20, color: k.mutedFg })))
+    .child(h_flex().size(40).rounded(RADIUS.lg).items_center().justify_center().bg(k.muted).child(Icon(icon, { size: 20, color: iconColor ?? k.mutedFg })))
     .child(
       v_flex()
         .items_center()
@@ -553,7 +572,7 @@ export function ActionBar(actions, { id = "actions" } = {}) {
 }
 
 /** An app's header: icon tile, title and description, actions on the right. */
-export function PageHeader({ icon, title, description, aside, actions = [], sources, view, narrow = false } = {}) {
+export function PageHeader({ icon, iconColor, title, description, aside, actions = [], sources, view, narrow = false } = {}) {
   const k = tokens();
   const chips = sources?.length ? SourceChips(sources, { view, narrow }) : null;
   return h_flex()
@@ -564,7 +583,7 @@ export function PageHeader({ icon, title, description, aside, actions = [], sour
     .items_center()
     .border_b_1()
     .border_color(k.border)
-    .when(Boolean(icon), (e) => e.child(h_flex().size(32).rounded(RADIUS.lg).items_center().justify_center().border_1().border_color(k.border).bg(k.muted).child(Icon(icon, { size: 16, color: k.foreground }))))
+    .when(Boolean(icon), (e) => e.child(h_flex().size(32).rounded(RADIUS.lg).items_center().justify_center().border_1().border_color(k.border).bg(k.muted).child(Icon(icon, { size: 16, color: iconColor ?? k.foreground }))))
     .child(
       v_flex()
         .flex_1()

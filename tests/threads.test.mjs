@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { THREADS, KINDS, kindOf, mainMachine, normalize, folderPath, problem, spaceArgs, begin, settle, mark, release, split, PENDING_MS, targetChoices, unbridged, bridged, folderOn, resolve, forget, activity, ago, RESOLVED_KEPT, LIST_SCRIPT, parseListing, childOf, parentOf } from "../mods/flow/threads.js";
+import { THREADS, KINDS, kindOf, mainMachine, normalize, folderPath, problem, spaceArgs, begin, settle, mark, release, split, PENDING_MS, targetChoices, unbridged, bridged, folderOn, resolve, forget, activity, ago, RESOLVED_KEPT, LIST_SCRIPT, parseListing, childOf, parentOf, dropSlot, moveTo, DRAG_PX } from "../mods/flow/threads.js";
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -205,4 +205,47 @@ test("the listing script lists a folder's folders, reads ~ and bare paths from h
   } finally {
     rmSync(home, { recursive: true, force: true });
   }
+});
+
+test("a dragged thread lands before the first card whose middle is below the pointer", () => {
+  const heights = [60, 40, 60];
+  assert.equal(dropSlot(heights, -10, 4), 0, "above the list: first");
+  assert.equal(dropSlot(heights, 29, 4), 0);
+  assert.equal(dropSlot(heights, 31, 4), 1);
+  assert.equal(dropSlot(heights, 83, 4), 1, "card 2 starts at 64, its middle at 84");
+  assert.equal(dropSlot(heights, 85, 4), 2);
+  assert.equal(dropSlot(heights, 500, 4), 3, "below the list: last");
+  assert.equal(dropSlot([], 10, 4), 0);
+  assert.ok(DRAG_PX > 0);
+});
+
+test("a thread dropped in a slot moves its space to the place Herdr's list gives that slot", () => {
+  // Threads among other spaces: Herdr's list is [a, x, b, y, c], x and y not threads.
+  const list = [
+    { id: "a", index: 0, machine: null },
+    { id: "b", index: 2, machine: null },
+    { id: "c", index: 4, machine: null },
+  ];
+  assert.deepEqual(moveTo(list, 2, 0), { id: "c", index: 1 }, "up to the top: first");
+  assert.deepEqual(moveTo(list, 2, 1), { id: "c", index: 3 }, "up before b: b's place");
+  assert.deepEqual(moveTo(list, 0, 2), { id: "a", index: 3 }, "down past b: b's place, b moves up");
+  assert.deepEqual(moveTo(list, 0, 3), { id: "a", index: 5 }, "down to the end: last");
+  assert.equal(moveTo(list, 1, 1), null, "its own slot");
+  assert.equal(moveTo(list, 1, 2), null, "the slot right after it");
+  assert.equal(moveTo(list, 1, -1), null);
+  assert.equal(moveTo(list, 1, 4), null);
+  assert.equal(moveTo(list, 5, 0), null, "a thread that isn't there");
+});
+
+test("a thread only moves among its machine's threads", () => {
+  const list = [
+    { id: "a", index: 0, machine: null },
+    { id: "b", index: 1, machine: null },
+    { id: "r", index: 2, machine: "acme-dev" },
+    { id: "s", index: 3, machine: "acme-dev" },
+  ];
+  assert.equal(moveTo(list, 0, 3), null, "a beside r: acme-dev's block");
+  assert.deepEqual(moveTo(list, 0, 2), { id: "a", index: 2 }, "a after b, still this computer's");
+  assert.equal(moveTo(list, 3, 1), null, "s before b");
+  assert.deepEqual(moveTo(list, 3, 2), { id: "s", index: 3 });
 });

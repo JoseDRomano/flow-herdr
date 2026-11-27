@@ -53,15 +53,43 @@ export function parseSources(text) {
 /** The data-source id a collection:// URL names. */
 export const sourceId = (url) => String(url ?? "").replace(/^collection:\/\//, "");
 
+/** The views a database's fetch answer gives, each `{ url, name, type, groupBy, displayProperties, cardSize }`. */
+export function viewsOf(text) {
+  const out = [];
+  for (const found of String(text ?? "").matchAll(/<view\b([^>]*)>([\s\S]*?)<\/view>/gi)) {
+    let value;
+    try {
+      value = JSON.parse(found[2].trim());
+    } catch {
+      continue;
+    }
+    if (!value || typeof value !== "object") continue;
+    const url = /url\s*=\s*"\{\{(view:\/\/[^}]+)\}\}"/i.exec(found[1])?.[1] ?? null;
+    out.push({
+      url,
+      name: String(value.name ?? "").trim(),
+      type: String(value.type ?? "").trim(),
+      groupBy: value.groupBy && typeof value.groupBy === "object" ? value.groupBy : null,
+      displayProperties: Array.isArray(value.displayProperties) ? value.displayProperties.map(String) : null,
+      cardSize: String(value.cardSize ?? "").trim() || null,
+    });
+  }
+  return out;
+}
+
+/** The view a database's board follows: its first board view, which Notion names Kanban in most workspaces. */
+export const boardViewOf = (views) => (views ?? []).find((v) => v.type === "board") ?? null;
+
 /**
- * How a schema becomes a board: the title property, the property the columns come from (the first status, else the
- * first select), the columns in order (done ones flagged), and the other properties a card shows. Null without a
- * property to make columns of.
+ * How a schema becomes a board: the title property, the property the columns come from (the board view's, else the
+ * first status, else the first select), the columns in order (done ones flagged), and the other properties a card
+ * shows (the view's own when it says). Null without a property to make columns of.
  */
-export function shapeOf(schema) {
+export function shapeOf(schema, view = null) {
   const props = Object.values(schema ?? {});
   const title = props.find((p) => p.type === "title")?.name ?? null;
-  const by = props.find((p) => p.type === "status") ?? props.find((p) => p.type === "select");
+  const grouped = view?.groupBy?.property ? props.find((p) => p.name === view.groupBy.property && (p.type === "status" || p.type === "select")) : null;
+  const by = grouped ?? props.find((p) => p.type === "status") ?? props.find((p) => p.type === "select");
   if (!title || !by) return null;
   let columns;
   if (by.type === "status") {
@@ -71,11 +99,21 @@ export function shapeOf(schema) {
   } else {
     columns = (by.options ?? []).map((o) => ({ name: o.name, color: o.color ?? "default", done: /^(done|complete|completed|closed)$/i.test(o.name) }));
   }
+  if (view?.groupBy?.sort?.type === "descending") columns = [...columns].reverse();
+  const listed = Boolean(view?.displayProperties?.length);
+  const shown = new Set((view?.displayProperties ?? []).filter((name) => name !== title && name !== by.name));
   const extras = props
     .filter((p) => p.name !== title && p.name !== by.name && ["select", "multi_select", "text", "rich_text", "date", "people", "person"].includes(p.type))
+    .filter((p) => !listed || shown.has(p.name))
+    .sort((a, b) => (view?.displayProperties ?? []).indexOf(a.name) - (view?.displayProperties ?? []).indexOf(b.name))
     .map((p) => ({ name: p.name, type: p.type, colors: Object.fromEntries((p.options ?? []).map((o) => [o.name, o.color ?? "default"])) }));
-  return { title, by: by.name, kind: by.type, columns, extras };
+  return { title, by: by.name, kind: by.type, columns, extras, view: view ? { name: view.name, type: view.type, url: view.url } : null };
 }
+
+/** The first column that counts as done, and the first that does not: where a card is marked done and reopened. */
+export const doneColumn = (shape) => (shape?.columns ?? []).find((c) => c.done)?.name ?? null;
+export const openColumn = (shape) => (shape?.columns ?? []).find((c) => !c.done)?.name ?? null;
+export const isDoneColumn = (shape, name) => Boolean((shape?.columns ?? []).find((c) => c.name === name && c.done));
 
 /** A page's id from its Notion URL: the last 32 hex digits. */
 export function pageId(url) {
@@ -120,6 +158,80 @@ export function columnsOf(shape, cards) {
   return loose.length ? [{ name: "No status", color: "default", done: false, none: true, cards: loose }, ...cols] : cols;
 }
 
+/** The board's columns as shown, done ones included only when `showDone`: from its open cards and its read done ones. */
+export function shownColumns(board, showDone = false) {
+  const cards = showDone ? [...(board?.cards ?? []), ...(board?.doneCards ?? [])] : (board?.cards ?? []);
+  const columns = columnsOf(board?.shape ?? { columns: [] }, cards);
+  return showDone ? columns : columns.filter((c) => !c.done);
+}
+
+/** A board with the open cards a read answer gives, its done cards kept, and its columns read again. */
+export function withCards(board, cards) {
+  return { ...board, cards, count: cards.length, columns: columnsOf(board.shape, cards) };
+}
+
+/** A board with the done cards a read answer gives. */
+export function withDone(board, cards) {
+  return { ...board, doneCards: cards, doneCount: cards.length };
+}
+
+/** A board with one card moved to a column, drawn at once before Notion answers. */
+export function moveInBoard(board, cardId, column) {
+  const all = [...(board?.cards ?? []), ...(board?.doneCards ?? [])];
+  const card = all.find((c) => c.id === cardId);
+  if (!card || card.status === column) return board;
+  const moved = { ...card, status: column };
+  const open = (board.cards ?? []).filter((c) => c.id !== cardId);
+  const done = (board.doneCards ?? []).filter((c) => c.id !== cardId);
+  if (isDoneColumn(board.shape, column)) done.push(moved);
+  else open.push(moved);
+  return { ...withCards(board, open), doneCards: done, doneCount: done.length };
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The boards the person pinned, kept in the window's shared state
+
+/** A pinned page or database as Flow lists it: `{ key, url, title, icon, type }`, from what the shared state holds. */
+export function pinnedItems(value) {
+  const list = Array.isArray(value?.boards) ? value.boards : [];
+  const out = [];
+  const seen = new Set();
+  for (const board of list) {
+    const url = String(board?.url ?? "").trim();
+    if (!/^https?:\/\//i.test(url) || seen.has(url)) continue;
+    seen.add(url);
+    out.push({
+      key: url,
+      url,
+      title: String(board?.title ?? "").trim() || "(untitled)",
+      icon: typeof board?.icon === "string" && board.icon.trim() ? board.icon.trim() : null,
+      type: board?.type === "database" ? "database" : "page",
+    });
+  }
+  return out;
+}
+
+/** The shared state with `item` pinned (`on`) or unpinned; unpinning the current one clears it. */
+export function pinItem(value, item, on = true) {
+  const config = value && typeof value === "object" ? value : {};
+  const items = pinnedItems(config);
+  const key = String(item?.key ?? item?.url ?? "");
+  const boards = on
+    ? items.some((b) => b.key === key)
+      ? items.map((b) => (b.key === key ? { ...b, ...item, key } : b))
+      : [...items, { key, url: String(item?.url ?? key), title: String(item?.title ?? "").trim() || "(untitled)", icon: item?.icon ?? null, type: item?.type === "database" ? "database" : "page" }]
+    : items.filter((b) => b.key !== key);
+  const current = boards.some((b) => b.key === config.current) ? config.current : null;
+  return { ...config, boards, current };
+}
+
+/** The shared state with `key` as the board the Notion screen opens, when it is pinned. */
+export function pinCurrent(value, key) {
+  const config = value && typeof value === "object" ? value : {};
+  const current = pinnedItems(config).some((b) => b.key === key) ? key : null;
+  return { ...config, current };
+}
+
 /** The filter on the column property that keeps the open cards (`done: false`) or the done ones (`done: true`). */
 export function filterFor(shape, done) {
   const names = shape.columns.filter((c) => c.done).map((c) => c.name);
@@ -148,7 +260,7 @@ export const moveArgs = (card, shape, column) => ({ page_id: card.id, command: "
 export function createArgs(source, shape, title, column) {
   const properties = { [shape.title]: title };
   if (column) properties[shape.by] = column;
-  return { parent: { type: "data_source_id", data_source_id: sourceId(source) }, pages: [{ properties }] };
+  return { parent: { type: "data_source_id", data_source_id: sourceId(source) }, pages: [{ properties }], allow_async: false };
 }
 
 /** What a failed call says, in a line a person reads, and whether signing in again is the fix. */

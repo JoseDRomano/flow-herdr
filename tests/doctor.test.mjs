@@ -302,20 +302,22 @@ test("a confirm asked from one report closes when another lands, and never runs 
   assert.deepEqual(plain(f.acts.filter(([app]) => app === "doctor")), [["doctor", "fix", ["install.link", 2000, "sh /b/ensure-spaces.sh"]]]);
 });
 
-test("the sheet opens on Options, on Health for the name it had, and its link opens on Health while a check fails", async () => {
+test("the sheet opens on Flow, its old names still open their tab, and its link opens on Health while a check fails", async () => {
   const f = await fixture();
   f.doctor.openSettings();
   f.doctor.openSettings({ tab: "health" });
   assert.deepEqual(plain(f.opened.map((o) => [o.kind, o.key, o.props])), [["window", "flow-settings", { app: "settings", tab: null, person: false }], ["window", "flow-settings", { app: "settings", tab: "health", person: false }]]);
   assert.deepEqual([f.doctor.sheetWidth({ width: 1600 }), f.doctor.sheetWidth({ width: 760 }), f.doctor.sheetWidth({ width: 200 }), f.doctor.sheetWidth(null)], [860, 728, 320, 860], "it fits a narrow window");
-  assert.equal((await sheet(f)).s.tab, "options");
+  assert.equal((await sheet(f)).s.tab, "flow", "the sheet opens on Flow's overview");
   assert.equal((await sheet(f, { tab: "agents" })).s.tab, "agents");
+  assert.equal((await sheet(f, { tab: "layout" })).s.tab, "look", "the Layout tab it had is Look");
+  assert.equal((await sheet(f, { tab: "options" })).s.tab, "work", "the Options tab it had is Work");
   // The two tabs the checks had before are Health, the second with every check.
   const problems = (await sheet(f, { tab: "problems" })).s;
   assert.deepEqual([problems.tab, problems.all], ["health", false]);
   const all = (await sheet(f, { tab: "all" })).s;
   assert.deepEqual([all.tab, all.all], ["health", true]);
-  assert.equal((await sheet(f, { tab: "made-up" })).s.tab, "options");
+  assert.equal((await sheet(f, { tab: "made-up" })).s.tab, "flow");
   // The sidebar's entry: its name, its failing count, and where a click lands.
   f.shared.set("flow.doctor.failing", 0);
   const quiet = f.doctor.SettingsLink("sidebar-settings");
@@ -330,10 +332,10 @@ test("the sheet opens on Options, on Health for the name it had, and its link op
   assert.deepEqual([f.opened.at(-1).props.tab, f.opened.at(-1).props.person], ["health", true], "the person's click");
 });
 
-test("the options tab notes what it shows as seen and sets an option from the person's own key only", async () => {
+test("the Advanced tab notes what it shows as seen and sets an option from the person's own key only", async () => {
   const f = await fixture();
-  const { s, cx, toasts, settled, sets } = await sheet(f, { person: true });
-  assert.equal(s.tab, "options", "the sheet opens on its options");
+  const { s, cx, toasts, settled, sets } = await sheet(f, { tab: "advanced", person: true });
+  assert.equal(s.tab, "advanced");
   const optionActs = () => plain(f.acts.filter(([app]) => app === "options").map(([app, action, args]) => [app, action, args]));
   assert.deepEqual(optionActs(), [["options", "shown", [{ keys: ["chat.nextSteps"] }]]], "the one not seen yet, once");
   s.key({ keystroke: "j" }, cx);
@@ -354,7 +356,7 @@ test("the options tab notes what it shows as seen and sets an option from the pe
 
 test("a sheet a bare command opened notes nothing as seen until the person's own key or click", async () => {
   const f = await fixture();
-  const { s, cx, settled } = await sheet(f);
+  const { s, cx, settled } = await sheet(f, { tab: "advanced" });
   const shown = () => plain(f.acts.filter(([app, action]) => app === "options" && action === "shown").map(([, , args]) => args[0]));
   assert.deepEqual(shown(), [], "opened by a bare command");
   s.key({ keystroke: "j", injected: true }, cx);
@@ -400,10 +402,10 @@ test("⏎ on a check needs a move or a click on Health itself: arming one tab ar
   const report = { ...REPORT, at: 1000, checks: [{ id: "install.link", category: "install", status: "fail", message: "no link", fix: { label: "ln", command: "ln -sfn /a /b" } }] };
   const f = await fixture(JSON.stringify(report));
   const { s, cx, toasts } = await sheet(f);
-  // Moved in Options, the person changes tab: Health waits for its own move.
+  // Moved in Flow, the person changes tab: Health waits for its own move.
   s.key({ keystroke: "j" }, cx);
   assert.equal(s.pointed, false);
-  s.key({ keystroke: "2" }, cx);
+  s.key({ keystroke: "6" }, cx);
   assert.deepEqual([s.tab, s.pointed], ["health", true]);
   s.key({ keystroke: "enter" }, cx);
   assert.equal(s.asking, null, "⏎ asks about nothing never picked");
@@ -423,7 +425,7 @@ test("⏎ on a check needs a move or a click on Health itself: arming one tab ar
   assert.equal(s.asking?.item.id, "install.link");
   // O opens the file only after a move or a click, as space does.
   const g = await fixture();
-  const o = await sheet(g);
+  const o = await sheet(g, { tab: "work" });
   o.s.key({ keystroke: "o" }, o.cx);
   await o.settled();
   assert.deepEqual(g.executed, []);
@@ -436,8 +438,8 @@ test("⏎ on a check needs a move or a click on Health itself: arming one tab ar
 test("a sheet any process opened sets and asks nothing on the person's next keys until they move or click in it", async () => {
   const f = await fixture();
   const { s, cx, toasts, settled, sets } = await sheet(f, { tab: "health" });
-  s.key({ keystroke: "1" }, cx);
-  assert.equal(s.tab, "options", "1 still shows the tab");
+  s.key({ keystroke: "4" }, cx);
+  assert.equal(s.tab, "work", "4 still shows the tab");
   s.key({ keystroke: "space" }, cx);
   s.key({ keystroke: "enter" }, cx);
   await settled();
@@ -478,7 +480,7 @@ test("a sheet any process opened sets and asks nothing on the person's next keys
 
 test("a choice, a field and a number change nothing from a bare command, an injected key or a held one", async () => {
   const f = await fixture();
-  const { s, cx, settled, sets } = await sheet(f);
+  const { s, cx, settled, sets } = await sheet(f, { tab: "agents" });
   const at = (key) => s.options.findIndex((o) => o.key === key);
   // On the choice, before any move: its arrows, space and ⏎ only say to move first.
   s.optionAt = at("agents.pace");
@@ -486,8 +488,8 @@ test("a choice, a field and a number change nothing from a bare command, an inje
   await settled();
   assert.deepEqual(sets(), []);
   // Moved to by the person, an injected or held arrow still turns nothing.
+  s.optionAt = at("links.fromBranch");
   s.key({ keystroke: "j" }, cx);
-  s.key({ keystroke: "k" }, cx);
   assert.equal(s.options[s.optionAt].key, "agents.pace");
   s.key({ keystroke: "right", injected: true }, cx);
   s.key({ keystroke: "right", is_held: true }, cx);
@@ -495,6 +497,7 @@ test("a choice, a field and a number change nothing from a bare command, an inje
   await settled();
   assert.deepEqual(sets(), []);
   // ⏎ from outside puts the keyboard in no field, so nothing typed from outside lands in one.
+  s.show("work");
   s.optionAt = at("brief.at");
   s.key({ keystroke: "enter", injected: true }, cx);
   s.key({ keystroke: "enter", is_held: true }, cx);
@@ -504,6 +507,7 @@ test("a choice, a field and a number change nothing from a bare command, an inje
   s.key({ keystroke: "o", is_held: true }, cx);
   await settled();
   assert.deepEqual(f.executed, []);
+  s.key({ keystroke: "j" }, cx);
   s.key({ keystroke: "o" }, cx);
   await settled();
   assert.deepEqual(plain(f.executed), [["code", ["/Users/me/.config/cockpit/config.json"]]], "the file in the person's editor");
@@ -511,7 +515,7 @@ test("a choice, a field and a number change nothing from a bare command, an inje
 
 test("a choice takes its next value from space or an arrow, and its pill by a click", async () => {
   const f = await fixture();
-  const { s, cx, toasts, settled, sets, option } = await sheet(f);
+  const { s, cx, toasts, settled, sets, option } = await sheet(f, { tab: "agents" });
   s.pointed = false;
   s.optionAt = s.options.findIndex((o) => o.key === "agents.pace");
   s.key({ keystroke: "space" }, cx);
@@ -540,7 +544,7 @@ test("a choice takes its next value from space or an arrow, and its pill by a cl
 
 test("a field is typed in after ⏎ or a click, saved by ⏎ as the hub wrote it, and esc gives the keyboard back", async () => {
   const f = await fixture();
-  const { s, cx, toasts, settled, sets, option } = await sheet(f);
+  const { s, cx, toasts, settled, sets, option } = await sheet(f, { tab: "work" });
   const at = (key) => s.options.findIndex((o) => o.key === key);
   const brief = s.fields.get("brief.at");
   assert.equal(brief.value(), "08:30");
@@ -550,7 +554,7 @@ test("a field is typed in after ⏎ or a click, saved by ⏎ as the hub wrote it
   assert.equal(s.field, "brief.at", "⏎ on its row puts the keyboard in the field");
   // While the field has the keyboard, the sheet's own keys are the field's: no tab changes, nothing is set.
   for (const keystroke of ["2", "j", "space", "r", "u"]) assert.equal(s.key({ keystroke }, cx), false, keystroke);
-  assert.equal(s.tab, "options");
+  assert.equal(s.tab, "work");
   brief.type("9:05", cx);
   assert.equal(s.dirty(option("brief.at")), true);
   brief.submit(cx);
@@ -590,7 +594,7 @@ test("a field is typed in after ⏎ or a click, saved by ⏎ as the hub wrote it
 
 test("a save the hub refuses puts the switch back and says why under it, and an invalid value stays in its field", async () => {
   const f = await fixture();
-  const { s, cx, toasts, settled, sets, option } = await sheet(f);
+  const { s, cx, toasts, settled, sets, option } = await sheet(f, { tab: "work" });
   s.pointed = false;
   const k = { ring: "#55f", border: "#333", selected: "#222", background: "#111", foreground: "#eee", mutedFg: "#aaa", accent: "#222", destructive: "#f00", dim: "#888", input: "#444", primary: "#fff", primaryFg: "#000" };
   // A switch: shown on at once, back off when the hub refuses, with its reason.
@@ -638,7 +642,7 @@ test("a save the hub refuses puts the switch back and says why under it, and an 
 
 test("an option config.json sets by hand shows no field and takes no key", async () => {
   const f = await fixture();
-  const { s, cx, settled, sets, option } = await sheet(f);
+  const { s, cx, settled, sets, option } = await sheet(f, { tab: "work" });
   s.pointed = false;
   s.optionAt = s.options.findIndex((o) => o.key === "meetingBrief.model");
   s.key({ keystroke: "enter" }, cx);
@@ -746,8 +750,8 @@ test("with the hub down the sheet still opens, says why in the error's own words
   s.show("health");
   const health = s.healthRows(k, cx).flatMap((row) => f.words(row));
   assert.ok(health.includes("Why: cockpit hub: address already in use (port 7410)") && health.includes("gh not signed in"), health.join(" | "));
-  const tabs = f.flat(s.render(cx)).find((el) => el?.kids?.includes("Health"));
-  assert.ok(f.words(tabs).includes("3"), "two checks to look at and the hub");
+  const nav = f.words(s.nav(k, false));
+  assert.ok(nav.includes("Health") && nav.includes("3"), "two checks to look at and the hub");
   // Start it is the person's click: an explicit start, and why when it fails.
   f.state.startFails = "cockpit hub: address already in use (port 7410)";
   const row = f.flat(s.hubRow(k, "health-hub"));
@@ -913,41 +917,41 @@ test("the Agents tab says driven for an agent cockpit can run itself, and its to
   assert.ok(!words.includes("in chat"));
 });
 
-test("the Layout tab shows Flow, Mist and Daylight in the window's theme, Flow In use, the others a switch away", async () => {
-  const dark = { background: "#101010", foreground: "#eee", mutedFg: "#aaa", dim: "#888", border: "#333", ring: "#55f" };
-  const light = { ...dark, background: "#fafaf8", foreground: "#111" };
+test("the Look tab shows Flow, Mist and Daylight in light and dark, Flow In use, the others a switch away", async () => {
+  const k = { background: "#101010", foreground: "#eee", mutedFg: "#aaa", dim: "#888", border: "#333", ring: "#55f", card: "#181818", selected: "#222" };
   const f = await fixture();
   f.doctor.openSettings({ tab: "layout" });
   assert.equal(f.opened.at(-1).props.tab, "layout", "flow.settings:layout opens it");
   const { s } = await sheet(f, { tab: "layout" });
-  assert.equal(s.tab, "layout");
-  const cards = (k) => f.flat(s.layoutEl(k)).filter((el) => el?.made?.some(([name, id]) => name === "id" && /^layout-flow/.test(id)));
-  const pictures = (k) => f.flat(s.layoutEl(k)).filter((el) => el?.kind === "image").map((el) => el.path);
-  assert.deepEqual(pictures(dark), ["mods/flow/layouts/flow-dark.png", "mods/flow/layouts/flow-mist-dark.png", "mods/flow/layouts/flow-daylight-dark.png"]);
-  assert.deepEqual(pictures(light), ["mods/flow/layouts/flow-light.png", "mods/flow/layouts/flow-mist-light.png", "mods/flow/layouts/flow-daylight-light.png"]);
-  assert.equal(cards(dark).length, 3);
-  const words = f.words(s.layoutEl(dark));
-  for (const w of ["Flow", "Mist", "Daylight", "In use", ...f.doctor.LAYOUT_CHOICES.flatMap((l) => l.points)]) assert.ok(words.includes(w), w);
-  const useButton = (name) => f.flat(s.layoutEl(dark)).find((el) => el?.made?.some(([key, id]) => key === "id" && id === `layout-use-${name}`));
-  assert.ok(!useButton("flow"), "no Use this layout while Flow is shown");
+  assert.equal(s.tab, "look");
+  const cards = f.flat(s.layoutEl(k)).filter((el) => el?.made?.some(([name, id]) => name === "id" && /^layout-flow/.test(id)));
+  const pictures = f.flat(s.layoutEl(k)).filter((el) => el?.kind === "image").map((el) => el.path);
+  const expected = f.doctor.LAYOUT_CHOICES.flatMap((l) => [`mods/flow/layouts/${l.name}-light.png`, `mods/flow/layouts/${l.name}-dark.png`]);
+  assert.deepEqual(plain(pictures), plain(expected), "each look is shown in both themes");
+  assert.equal(cards.length, 3);
+  const words = f.words(s.layoutEl(k));
+  for (const w of ["Flow", "Mist", "Daylight", "In use", ...f.doctor.LAYOUT_CHOICES.flatMap((l) => [l.tagline, ...l.points])]) assert.ok(words.includes(w), w);
+  const useButton = (name) => f.flat(s.layoutEl(k)).find((el) => el?.made?.some(([key, id]) => key === "id" && id === `layout-use-${name}`));
+  assert.ok(!useButton("flow"), "no Use this look while Flow is shown");
   assert.ok(useButton("flow-mist") && useButton("flow-daylight"), "Mist and Daylight are a switch away");
-  // The layout shown changes nothing, and a made-up one is no choice.
+  // The look shown changes nothing, and a made-up one is no choice.
   s.useLayout("flow");
   s.useLayout("made-up");
   assert.equal(f.commands.length, 0);
-  // Narrow, the cards stack and their pictures take the width.
+  // Narrow, the two pictures stack and take the content's width.
   s.width = 400;
-  const narrow = f.flat(s.layoutEl(dark)).find((el) => el?.kind === "image");
-  assert.equal(narrow.made.find(([name]) => name === "w")[1], 360 - 26);
+  const narrow = f.flat(s.layoutEl(k)).find((el) => el?.kind === "image");
+  assert.equal(narrow.made.find(([name]) => name === "w")[1], s.contentWidth() - 26);
+  assert.equal(s.contentWidth(), 372, "the body's room after the narrow margins");
 });
 
-test("the Layout tab is the fourth: its number key shows it, and Esc still closes", async () => {
+test("Look is the second tab: its number key shows it, and Esc still closes", async () => {
   const f = await fixture();
   const { s, cx } = await sheet(f);
-  s.key({ keystroke: "4" }, cx);
-  assert.equal(s.tab, "layout");
+  s.key({ keystroke: "2" }, cx);
+  assert.equal(s.tab, "look");
   s.key({ keystroke: "1" }, cx);
-  assert.equal(s.tab, "options");
+  assert.equal(s.tab, "flow");
   assert.equal(f.doctor.isDark("#101010"), true);
   assert.equal(f.doctor.isDark("#fafaf8ff"), false);
   assert.equal(f.doctor.isDark(undefined), true);
@@ -985,6 +989,53 @@ const mapsInto = (f, section) => () => {
   return { code: 0, stdout: `Mapped GitLab for ${section}: 2 items`, stderr: "" };
 };
 
+test("the Flow tab draws the window, its figures and its doors, and the rail reaches every tab", async () => {
+  const f = await fixture();
+  const { s, cx } = await sheet(f);
+  const k = { ring: "#55f", border: "#333", selected: "#222", background: "#111", foreground: "#eee", mutedFg: "#aaa", accent: "#222", destructive: "#f00", dim: "#888", input: "#444", primary: "#fff", primaryFg: "#000", muted: "#222", card: "#181818", success: "#0a0" };
+  assert.equal(s.tab, "flow");
+  const words = s.flowEl(k).flatMap((row) => f.words(row));
+  for (const w of ["The Flow window", "Home", "Work", "Review", "Panel", "Threads", "Open threads", "Everyday keys", "At hand", "New thread", "Add machine", "Connect GitLab", "Usage", "1 failing"]) assert.ok(words.includes(w), w);
+  // The rail: seven doors, with the health count.
+  const rail = f.words(s.nav(k, false));
+  for (const w of ["Flow", "Look", "Agents", "Work", "Data", "Health", "Advanced", "The window at a glance", "Cockpit options Flow does not use"]) assert.ok(rail.includes(w), w);
+  assert.ok(rail.includes("2"), "two checks to look at");
+  assert.ok(f.words(s.nav(k, true)).includes("Advanced"), "the narrow rail keeps every name");
+  const work = f.flat(s.nav(k, false)).find((el) => el?.made?.some(([name, id]) => name === "id" && id === "settings-nav-work"));
+  work.made.find(([name]) => name === "on_click")[1]({}, cx);
+  assert.equal(s.tab, "work");
+  const health = s.flowEl(k).flatMap((row) => f.flat(row)).find((el) => el?.made?.some(([name, id]) => name === "id" && id === "flow-stat-health"));
+  health.made.find(([name]) => name === "on_click")[1]({}, cx);
+  assert.equal(s.tab, "health", "a figure opens the tab it counts");
+  // The number keys follow the rail's order.
+  for (const [key, tab] of [["1", "flow"], ["2", "look"], ["3", "agents"], ["4", "work"], ["5", "data"], ["6", "health"], ["7", "advanced"]]) {
+    s.key({ keystroke: key }, cx);
+    assert.equal(s.tab, tab, key);
+  }
+});
+
+test("the Flow tabs show only what Flow acts on, and Advanced keeps every other cockpit option", async () => {
+  const f = await fixture();
+  const { s } = await sheet(f);
+  const keys = (tab) => plain(s.optionList(tab).map((o) => o.key));
+  assert.deepEqual(keys("agents"), ["agents.pace"]);
+  assert.deepEqual(keys("work"), ["queue.drain", "brief.at", "meetingBrief.model"], "chat and Start work stay out of Work");
+  assert.deepEqual(keys("data"), ["refresh.github"]);
+  assert.deepEqual(keys("advanced"), ["chat.nextSteps"]);
+  // Every option is in exactly one tab: fewer doors, nothing lost.
+  const shown = ["agents", "work", "data", "advanced"].flatMap(keys);
+  assert.equal(shown.length, OPTIONS.length);
+  assert.deepEqual([...shown].sort(), OPTIONS.map((o) => o.key).sort());
+  // The cards say what each door holds, and Work keeps cockpit's chat and Start work out.
+  const k = { ring: "#55f", border: "#333", selected: "#222", background: "#111", foreground: "#eee", mutedFg: "#aaa", accent: "#222", destructive: "#f00", dim: "#888", input: "#444", primary: "#fff", primaryFg: "#000", muted: "#222", card: "#181818", success: "#0a0" };
+  const work = s.workEl(k).flatMap((row) => f.words(row));
+  for (const w of ["Threads", "New thread", "Queue and CI", "Briefs and recaps"]) assert.ok(work.includes(w), w);
+  assert.ok(!work.includes("Start work") && !work.includes("Cockpit's other options"));
+  const advanced = s.advancedEl(k).flatMap((row) => f.words(row));
+  assert.ok(advanced.includes("Cockpit's other options") && advanced.includes("CHAT") && advanced.includes("Suggest next prompts"), advanced.join(" | "));
+  assert.ok(!advanced.includes("Queue and CI"), "no option drawn twice");
+});
+
 test("the Options tab offers Connect GitLab, and says what is connected once it is", async () => {
   const f = await fixture();
   const { s } = await sheet(f);
@@ -996,6 +1047,19 @@ test("the Options tab offers Connect GitLab, and says what is connected once it 
   const again = await sheet(f);
   words = f.words(again.s.gitlabRow(k));
   assert.ok(words.includes("Connected to gitlab.acme.example: merge requests."), words.join(" | "));
+});
+
+test("Connect GitLab shows while the options load and when cockpit has none, since it needs neither", async () => {
+  const f = await fixture();
+  const { s } = await sheet(f);
+  const k = { ring: "#55f", border: "#333", selected: "#222", background: "#111", foreground: "#eee", mutedFg: "#aaa", accent: "#222", destructive: "#f00", dim: "#888", input: "#444", primary: "#fff", primaryFg: "#000", muted: "#222", success: "#0a0", card: "#111" };
+  const offered = () => s.optionRows(k).flatMap((row) => f.flat(row)).some((el) => el?.made?.some(([key, id]) => key === "id" && id === "options-gitlab-connect"));
+  s.rowAt = {};
+  assert.ok(offered(), "with the options read");
+  s.options = null;
+  assert.ok(offered(), "while the options are read");
+  s.options = [];
+  assert.ok(offered(), "when cockpit has no options");
 });
 
 test("connecting a self-hosted GitLab finds the server in a pasted page, signs in, maps each part and reads once", async () => {

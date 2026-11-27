@@ -59,7 +59,7 @@
                   "type": "block",
                   "content": { "mod": "flow", "props": { "app": "home" } },
                   "radius": 14,
-                  "background": "background",
+                  "background": { "gradient": ["sky_card_top", "sky_card_bottom"], "angle": 180 },
                   "border": { "width": 1, "color": "glass_line" }
                 },
                 {
@@ -74,7 +74,7 @@
                       "id": "home-agent-card",
                       "type": "column",
                       "radius": 14,
-                      "background": "background",
+                      "background": { "gradient": ["sky_card_top", "sky_card_bottom"], "angle": 180 },
                       "resizable": false,
                       "children": [
                         { "id": "home-agent-head", "type": "block", "size": { "px": 34 }, "content": { "mod": "flow", "props": { "app": "agent-head", "place": "home" } } },
@@ -104,7 +104,7 @@
                         "pane": {
                           "gap": 12,
                           "radius": 14,
-                          "background": "background",
+                          "background": { "gradient": ["sky_card_top", "sky_card_bottom"], "angle": 180 },
                           "lone": true,
                           "focus": { "width": 1, "color": "glass_focus" },
                           "header": { "content": { "mod": "flow", "props": { "app": "pane" } }, "height": 30, "position": "top", "reveal": "always" },
@@ -116,7 +116,7 @@
                       "id": "agent",
                       "type": "column",
                       "radius": 14,
-                      "background": "background",
+                      "background": { "gradient": ["sky_card_top", "sky_card_bottom"], "angle": 180 },
                       "resizable": false,
                       "children": [
                         { "id": "agent-head", "type": "block", "size": { "px": 34 }, "content": { "mod": "flow", "props": { "app": "agent-head", "place": "work" } } },
@@ -134,7 +134,7 @@
                   "min": 280,
                   "max": 900,
                   "radius": 14,
-                  "background": "background",
+                  "background": { "gradient": ["sky_card_top", "sky_card_bottom"], "angle": 180 },
                   "resizable": false,
                   "children": [
                     {
@@ -157,11 +157,27 @@
               ]
             },
             {
+              "id": "gitlab",
+              "type": "block",
+              "content": { "mod": "flow", "props": { "app": "gitlab" } },
+              "radius": 14,
+              "background": { "gradient": ["sky_card_top", "sky_card_bottom"], "angle": 180 },
+              "border": { "width": 1, "color": "glass_line" }
+            },
+            {
+              "id": "notion",
+              "type": "block",
+              "content": { "mod": "flow", "props": { "app": "notion" } },
+              "radius": 14,
+              "background": { "gradient": ["sky_card_top", "sky_card_bottom"], "angle": 180 },
+              "border": { "width": 1, "color": "glass_line" }
+            },
+            {
               "id": "runbook",
               "type": "block",
               "content": { "mod": "flow", "props": { "app": "runbook" } },
               "radius": 14,
-              "background": "background",
+              "background": { "gradient": ["sky_card_top", "sky_card_bottom"], "angle": 180 },
               "border": { "width": 1, "color": "glass_line" }
             },
             {
@@ -169,7 +185,7 @@
               "type": "block",
               "content": { "mod": "flow", "props": { "app": "todo" } },
               "radius": 14,
-              "background": "background",
+              "background": { "gradient": ["sky_card_top", "sky_card_bottom"], "angle": 180 },
               "border": { "width": 1, "color": "glass_line" }
             },
             {
@@ -177,7 +193,7 @@
               "type": "block",
               "content": { "mod": "flow", "props": { "app": "meetings" } },
               "radius": 14,
-              "background": "background",
+              "background": { "gradient": ["sky_card_top", "sky_card_bottom"], "angle": 180 },
               "border": { "width": 1, "color": "glass_line" }
             },
             {
@@ -185,7 +201,7 @@
               "type": "block",
               "content": { "mod": "flow", "props": { "app": "monitor" } },
               "radius": 14,
-              "background": "background",
+              "background": { "gradient": ["sky_card_top", "sky_card_bottom"], "angle": 180 },
               "border": { "width": 1, "color": "glass_line" }
             },
             {
@@ -193,7 +209,7 @@
               "type": "block",
               "content": { "mod": "flow", "props": { "app": "routines" } },
               "radius": 14,
-              "background": "background",
+              "background": { "gradient": ["sky_card_top", "sky_card_bottom"], "angle": 180 },
               "border": { "width": 1, "color": "glass_line" }
             },
             {
@@ -201,7 +217,7 @@
               "type": "block",
               "content": { "mod": "flow", "props": { "app": "mail" } },
               "radius": 14,
-              "background": "background",
+              "background": { "gradient": ["sky_card_top", "sky_card_bottom"], "angle": 180 },
               "border": { "width": 1, "color": "glass_line" }
             }
           ]

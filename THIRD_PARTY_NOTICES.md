@@ -128,6 +128,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
+## CC0 1.0: Simple Icons
+
+- Source: https://github.com/simple-icons/simple-icons
+- In Flow: the GitLab and Notion marks' paths in `mods/flow/icons/gitlab.svg` and `mods/flow/icons/notion.svg`, drawn as
+  `currentColor` icons.
+- The GitLab name and its tanuki are trademarks of GitLab B.V.; Notion and its mark are trademarks of Notion Labs, Inc.
+  Flow uses each mark only to stand for the account its screen reads.
+
 ## SIL Open Font License 1.1: Instrument Serif
 
 - Source: https://github.com/Instrument/instrument-serif, as published in https://github.com/google/fonts

@@ -33,7 +33,9 @@ light). Type is Geist for the UI and Geist Mono 14 for terminals.
       focused pane, other panes veiled at 25%, a 30px Flow header on each), or the focused agent alone under its 34px
       head. The hidden **side panel**, 440px (280–900), sits on the right, a bordered card holding Show, Review,
       Runbook, Files, Changes and the side browser, with a 44px activity bar of their icons.
-    - **Runbook, To-do, Meetings, Monitor, Routines, Mail**: one full card each.
+    - **GitLab, Notion, Runbook, To-do, Meetings, Monitor, Routines, Mail**: one full card each. Notion's is a
+      page list beside the page: its databases as kanban boards, inline ones drawn inside the page, cards moving
+      between columns, done columns behind `d`.
 - **Status bar**, 34px across the window on `chrome`: the agents by stage (each a click), the focused agent's branch
   and links, queued prompts, agents to resume, and the hub's state while it doesn't answer.
 - **Queue drawer**, floating on the left edge near the bottom, a 44px peek: prompts queued for an agent, shown only
@@ -47,7 +49,7 @@ in `keys.json` under `layout:flow`). Flow differs in four ways:
 - A notification's click on an app's row (to-do, runbook, meetings, monitor, routines, mail) or on an app's space
   shows it in Flow; one on a PR opens its page, as Flow has no inbox. It doesn't run `cockpit focus`, which would switch the window to cockpit's layout.
 - After a cockpit update, Flow shows what changed and the new options, and offers no layout to try.
-- Flow settings' Layout tab shows the Flow layout alone, and sessions cockpit drives without a terminal are listed but
+- Flow settings' Look tab shows the three Flow looks alone, and sessions cockpit drives without a terminal are listed but
   can't be opened: Flow has no chat to read them in.
 - A split onto another machine (a terminal's right-click **Split right on…** / **Split down on…**) is opened from the
   tab's own machine as `flow.json`'s `routes` say: `hc run --on` from this computer by default, ssh, an ssh jump or

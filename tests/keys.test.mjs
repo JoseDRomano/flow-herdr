@@ -408,7 +408,7 @@ test("the palette leaves out a session cockpit drives, and a jump to an agent ma
 });
 test("the palette lists what the shown layout has", async () => {
   const flow = await fixture({ layout: "flow" });
-  assert.deepEqual(plain(flow.mod.screens().list).map((s) => s.child).slice(0, 3), ["home", "work", "runbook"]);
+  assert.deepEqual(plain(flow.mod.screens().list).map((s) => s.child).slice(0, 3), ["home", "work", "gitlab"]);
   const ids = palette(flow.mod, []).entries().map((e) => e.id);
   assert.ok(ids.includes("flow.queue") && ids.includes("flow.agent-view") && ids.includes("flow.thread") && ids.includes("flow.resume"));
   assert.ok(flow.mod.available("flow", "queue") && !flow.mod.available("flow", "terminal") && !flow.mod.available("flow", "sidebar"));

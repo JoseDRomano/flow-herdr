@@ -12,15 +12,16 @@ import { deliver } from "./notify.js";
 import { rowsOf, countsOf, agentStatus, needing, showBadge } from "./fleet.js";
 import { option } from "./config.js";
 import { show, showWork, screens } from "./screens.js";
+import { GITLAB_ORANGE } from "./gitlab-data.js";
 import { togglePalette, openRecap, hint, keyFor, keyText, lend, askResolve } from "./commands.js";
 import { UpdateTag, pending as pendingUpdate } from "./update.js";
 import { SettingsLink, HerdrLinks } from "./doctor.js";
 import { openUsage, inkOn } from "./usage.js";
 import { FOLDERS, normalize as normalizeFolders, arrange as arrangeFolders, toggleFolder as toggleFolders, machineKey, machineOfKey } from "./folders.js";
 import { openFolderName } from "./folder-name.js";
-import { THREADS, KINDS, kindOf, settle as settleThreads, split as splitThreads, unbridged, bridged, activity, ago, threadFolder, normalize as threadsOf } from "./threads.js";
+import { THREADS, KINDS, kindOf, settle as settleThreads, split as splitThreads, unbridged, bridged, activity, ago, threadFolder, normalize as threadsOf, dropSlot, moveTo, DRAG_PX } from "./threads.js";
 import { BRIDGES, remember, machineWords } from "./bridge.js";
-import { tokens, alpha, TEXT, RADIUS, Icon, Kbd, Button, openMenu, SectionHeader, StageHeading, HoverCard, Hover, Flashes, CornerCount, HubDown, dur, AgentLogo, providersOf } from "./ui.js";
+import { tokens, alpha, TEXT, RADIUS, Icon, Kbd, Button, openMenu, SectionHeader, StageHeading, HoverCard, Hover, Flashes, CornerCount, HubDown, dur, AgentLogo, providersOf, SkyGlow } from "./ui.js";
 import { AgentsModel, QuestionCard, QuotaBars, StageMark, Chips, STAGES, stageColor, stageAge, hours, statusColor, UndoRow } from "./agentsui.js";
 
 /** The config's pinned spaces that are apps here, by their space name; their key comes from the shown layout's keys. */
@@ -32,6 +33,9 @@ export const APPS = {
   routines: { label: "Routines", icon: "clock" },
   mail: { label: "Mail", icon: "mail" },
 };
+/** The space under each thread card, px. */
+const CARD_GAP = 4;
+
 const DEFAULT_SPACES = ["terminal", "actions", "to-do", "runbook", "meetings"];
 
 /** The fields of each app's view that appBadge reads: the hub sends these alone, and only when they move. */
@@ -88,6 +92,9 @@ export default class Sidebar {
     this.refreshMachines(cx);
     cx.timer.every(15000, cx => this.refreshMachines(cx));
     this.drag = null;
+    this.threadDrag = null;
+    this.dragEnded = false;
+    this.cardHeights = new Map();
     this.update = null;
     this.agents = new AgentsModel();
     this.agents.loadPins();
@@ -186,6 +193,7 @@ export default class Sidebar {
     if (this.place !== null && place !== this.place && active !== screens().work && active !== "home" && active !== "tab") cx.timer.after(1, () => showWork());
     this.place = place;
     const rail = this.width < 160;
+    const glow = SkyGlow("sky-glow-sidebar", k);
     const model = this.agents;
     const rows = model.rows;
     const waiting = rows.filter((r) => r.stage === "needs_you");
@@ -196,7 +204,7 @@ export default class Sidebar {
     if (!model.down) showBadge(needing(rows).length, option("dockBadge", true) !== false);
     setAgentOrder(order.filter(r => !r.remote).map((r) => r.address));
 
-    const navItem = (child, label, icon, count, command, tone) => {
+    const navItem = (child, label, icon, count, command, tone, color) => {
       const on = active === child;
       return h_flex()
         .id(`nav-${child}`)
@@ -218,7 +226,7 @@ export default class Sidebar {
           cx.notify();
         })
         .tooltip(hint(label, command))
-        .child(Icon(icon, { size: 16 }))
+        .child(Icon(icon, { size: 16, color }))
         .when(!rail, (e) => e.child(div().flex_1().truncate().child(label)))
         .when(Boolean(count) && !rail, (e) =>
           e.child(
@@ -239,6 +247,17 @@ export default class Sidebar {
         .when(Boolean(count) && rail, (e) => e.child(div().absolute().top(4).right(6).size(7).rounded(4).bg(tone ?? k.ring)));
     };
     const apps = this.spaces.filter((s) => APPS[s]).map((s) => ({ ...APPS[s], child: APPS[s].child ?? s, command: `flow.go:${APPS[s].child ?? s}` }));
+    // Flow's own screens stand beside Home, before the config's pinned spaces, whether a space holds them or not.
+    const fixed = [
+      ["gitlab", GITLAB_ORANGE],
+      ["notion", k.foreground],
+    ]
+      .map(([child, color]) => {
+        const screen = screens().list.find((s) => s.child === child);
+        return screen ? { child: screen.child, label: screen.label, icon: screen.icon, command: screen.command, color, fixed: true } : null;
+      })
+      .filter(Boolean);
+    apps.unshift(...fixed);
     const badge = (child) => this.counts[child] ?? shared(`badge.${child}`) ?? null;
     const tone = (child) => { const t = badge(child)?.tone; return t ? k[t] ?? t : null; };
     const counts = countsOf(model.value);
@@ -249,6 +268,8 @@ export default class Sidebar {
     return v_flex()
       .id("flow-sidebar")
       .size_full()
+      .relative()
+      .when(Boolean(glow), (e) => e.child(glow))
       .on_size_change((size, cx) => {
         if (Math.abs(size.width - this.width) > 1) {
           this.width = size.width;
@@ -290,7 +311,7 @@ export default class Sidebar {
       .when(rail, (e) =>
         e
           .children(lead.map((a) => navItem(a.child, a.label, a.icon, a.count, a.command, a.tone)))
-          .children(apps.map((a) => navItem(a.child, a.label, a.icon, badge(a.child)?.count || null, a.command, tone(a.child)))),
+          .children(apps.map((a) => navItem(a.child, a.label, a.icon, badge(a.child)?.count || null, a.command, tone(a.child), a.color))),
       )
       .when(!rail, (e) =>
         e.child(
@@ -326,7 +347,7 @@ export default class Sidebar {
         items.map((a) => {
           const on = active === a.child;
           // Home (and Needs) stay first; the pinned apps move by drag and drop, the config's order following.
-          const movable = a.child !== "home" && a.child !== "needs";
+          const movable = a.child !== "home" && a.child !== "needs" && !a.fixed;
           const d = this.appDrag;
           const dragging = d && d.from === a.child && d.over !== a.child;
           const over = d && d.over === a.child && d.from !== a.child;
@@ -370,7 +391,7 @@ export default class Sidebar {
               cx.notify();
             })
             .tooltip(hint(a.label, a.command))
-            .child(Icon(a.icon, { size: 16 }))
+            .child(Icon(a.icon, { size: 16, color: a.color }))
             .when(Boolean(a.count), (e) => e.child(CornerCount(a.count, { tone: a.tone ?? k.primary, top: -3, right: -2 })));
         }),
       );
@@ -653,7 +674,7 @@ export default class Sidebar {
    * open, then what its agents are doing. Nothing in it is a link of its own: a click shows the thread, a drag moves
    * it, a double-click renames it, a right-click opens its menu, and ✓ asks before resolving it.
    */
-  threadCard(k, { s, i, thread }, { colors, ps, byAddress, sp }) {
+  threadCard(k, { s, n, thread, line }, { colors, ps, byAddress }) {
     const STATUS = { blocked: "needs_you", failed: "failed", working: "working", done: "done", idle: "idle" };
     const stageOf = (p) => (p.terminal ? (byAddress.get(p.terminal)?.stage ?? STATUS[agentStatus(p.status)] ?? null) : null);
     const act = activity(s, ps, stageOf);
@@ -661,8 +682,7 @@ export default class Sidebar {
     const fill = colors[s.id] ?? k.ring;
     const [, kindLabel, kindIcon] = kindOf(thread.kind);
     const where = machineWords(thread.where ? thread.where.machine : s.machine);
-    const dragging = this.drag && this.drag.from === i;
-    const over = this.drag && this.drag.over === i && this.drag.from !== i;
+    const dragging = this.threadDrag?.moved && this.threadDrag.id === s.id;
     const urgent = act.needs_you > 0 ? k.blocked : act.failed > 0 ? k.destructive : null;
     const meta = [kindLabel, where, act.panes === 0 ? "no panes" : `${act.panes} ${act.panes === 1 ? "pane" : "panes"}`, ago(thread.at)].filter(Boolean).join(" · ");
     const states = [
@@ -683,14 +703,14 @@ export default class Sidebar {
       .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
       .on_mouse_up("left", (_e, cx) => {
         cx.stop_propagation();
-        this.drag = null;
+        this.threadDrag = null;
         askResolve(s.id);
       })
       .child(Icon("circle-check", { size: 15, color: k.dim }));
     return v_flex()
       .id(`thread-${s.id}`)
       .relative()
-      .mb(4)
+      .mb(CARD_GAP)
       .pl(12)
       .pr(8)
       .py(10)
@@ -701,24 +721,20 @@ export default class Sidebar {
       .when(k.sky && on, (e) => e.bg(k.accent))
       .cursor_pointer()
       .when(!on, (e) => e.hover((st) => st.bg(k.accent)))
-      .when(Boolean(dragging) && this.drag?.over !== i, (e) => e.opacity(0.5))
-      .when(Boolean(over), (e) => e.child(div().absolute().left(0).right(0).h(2).bg(k.ring).when(this.drag.from < i, (l) => l.bottom(-3)).when(this.drag.from > i, (l) => l.top(-3))))
+      .when(Boolean(dragging), (e) => e.opacity(0.5))
+      .when(line === "top", (e) => e.child(div().absolute().left(0).right(0).top(-3).h(2).rounded(1).bg(k.ring)))
+      .when(line === "bottom", (e) => e.child(div().absolute().left(0).right(0).bottom(-3).h(2).rounded(1).bg(k.ring)))
       .when(Boolean(urgent), (e) => e.child(div().absolute().left(0).top(10).bottom(10).w(3).rounded(2).bg(urgent)))
-      .on_mouse_down("left", () => {
-        this.drag = { from: i, over: i };
+      .on_size_change((size) => this.cardHeights.set(s.id, size.height))
+      .on_mouse_down("left", (e) => {
+        this.threadDrag = { id: s.id, from: n, at: e.position, moved: false, slot: null };
+        this.dragEnded = false;
       })
-      .on_mouse_move((_e, cx) => {
-        const from = this.drag && sp[this.drag.from];
-        if (from && (from.machine ?? null) === (s.machine ?? null) && this.drag.over !== i) {
-          this.drag.over = i;
-          cx.notify();
-        }
-      })
+      // A press that became a drag is the list's to end (threadList); a press that stayed put is a click.
       .on_mouse_up("left", (e, cx) => {
-        const d = this.drag;
-        this.drag = null;
-        if (d && d.over === i && d.from !== i) run("space.move", { id: sp[d.from].id, index: i + 1 });
-        else if (e.click_count > 1) run("space.rename", { id: s.id });
+        if (this.dragEnded || this.threadDrag?.moved) return;
+        this.threadDrag = null;
+        if (e.click_count > 1) run("space.rename", { id: s.id });
         else {
           run("space.select", { id: s.id });
           showSpace(s.id);
@@ -727,7 +743,7 @@ export default class Sidebar {
       })
       .on_mouse_down("right", (_e, cx) => {
         cx.stop_propagation();
-        this.drag = null;
+        this.threadDrag = null;
         this.threadMenu(s, thread);
       })
       .child(
@@ -756,6 +772,47 @@ export default class Sidebar {
             .children(states.map(([stage, n, word]) => h_flex().gap(5).items_center().child(StageMark(`thread-${s.id}-${stage}`, stage, { size: 6 })).child(`${n} ${word}`))),
         ),
       );
+  }
+
+  /**
+   * The thread cards, in Herdr's order. A press on a card that moves past DRAG_PX drags it: the list follows the pointer
+   * anywhere in the window, a line shows the slot it would land in, and letting go moves its space there.
+   */
+  threadList(k, threads, sp, ctx) {
+    const list = threads.map((t) => ({ id: t.space.id, index: sp.indexOf(t.space), machine: t.space.machine ?? null }));
+    const d = this.threadDrag;
+    const target = d?.moved && d.slot !== null ? moveTo(list, d.from, d.slot) : null;
+    const lineOf = (n) => (!target ? null : d.slot === n ? "top" : d.slot === list.length && n === list.length - 1 ? "bottom" : null);
+    const end = (cx) => {
+      const drag = this.threadDrag;
+      if (!drag) return;
+      this.threadDrag = null;
+      if (drag.moved) {
+        this.dragEnded = true;
+        const move = drag.slot !== null ? moveTo(list, drag.from, drag.slot) : null;
+        if (move) run("space.move", move);
+      }
+      cx.notify();
+    };
+    return v_flex()
+      .id("thread-cards")
+      .px(4)
+      .when(Boolean(d?.moved), (e) => e.cursor_grabbing())
+      .on_window_mouse_move((e, cx) => {
+        const drag = this.threadDrag;
+        if (!drag) return;
+        if (e.pressed_button !== "left") return end(cx);
+        if (!drag.moved && Math.hypot(e.position.x - drag.at.x, e.position.y - drag.at.y) < DRAG_PX) return;
+        const inside = e.local_position.x >= -24 && e.local_position.x <= (e.bounds?.width ?? Infinity) + 24;
+        const slot = inside ? dropSlot(list.map((t) => this.cardHeights.get(t.id) ?? 0), e.local_position.y, CARD_GAP) : null;
+        if (!drag.moved || slot !== drag.slot) {
+          drag.moved = true;
+          drag.slot = slot;
+          cx.notify();
+        }
+      })
+      .on_window_mouse_up("left", (_e, cx) => end(cx))
+      .children(threads.map((t, n) => this.threadCard(k, { s: t.space, n, thread: t.thread, line: lineOf(n) }, ctx)));
   }
 
   /** The threads marked resolved, folded until opened: each a line of its own, right-click to take it off the list. */
@@ -933,11 +990,10 @@ export default class Sidebar {
     const withTerms = (r) => [row(r), ...(folded.has(r.s.id) ? [] : this.termRows(k, r.s, ps, byAddress, r.tree))];
     // The threads lead as cards, in Herdr's order, then the resolved ones; the spaces that aren't threads follow, folded
     // until opened.
-    const cards = threads.map((t) => this.threadCard(k, { s: t.space, i: sp.indexOf(t.space), thread: t.thread }, { colors, ps, byAddress, sp }));
     const lead = [
       this.threadHead(threads.length),
-      ...(cards.length
-        ? [v_flex().id("thread-cards").px(4).children(cards)]
+      ...(threads.length
+        ? [this.threadList(k, threads, sp, { colors, ps, byAddress })]
         : [
             h_flex()
               .id("thread-empty")

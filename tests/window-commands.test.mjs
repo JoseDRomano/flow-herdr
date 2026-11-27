@@ -82,6 +82,8 @@ async function fixture({ layout = "flow", shown = "home", sandbox = false, focus
     'export { default as Start } from "./start.js";',
     'export { default as Review } from "./review.js";',
     'export { default as Code } from "./code.js";',
+    'export { default as GitlabPage } from "./gitlab-page.js";',
+    'export { default as Notion } from "./notion.js";',
     'export { default as Palette } from "./palette.js";',
     'export { default as Recap } from "./recap.js";',
     'export { default as Update } from "./update.js";',
@@ -606,7 +608,10 @@ const SHAPES = {
   "split:": ["split:to|right|p1|acme-build", "act"], "split:on|right|*": ["split:on|right|p1", "nav"], "split:on|down|*": ["split:on|down|p1", "nav"],
   "split:to|*|*|local": ["split:to|right|p1|local", "nav"], "split:to|*|*|*": ["split:to|down|p1|acme-build", "act"], "split:again|*": ["split:again|p1", "act"],
   "split:route|*|*": ["split:route|none|p1", "nav"],
-  gitlab: ["gitlab", "nav"], thread: ["thread", "nav"], "thread:": ["thread:release|s1", "act"], "thread:kind|*|*": ["thread:kind|s1|bug", "act"], "thread:release|*": ["thread:release|s1", "act"],
+  gitlab: ["gitlab", "nav"], "gitlab:open:*": ["gitlab:open:event:1", "nav"], "gitlab:project:": ["gitlab:project:acme/api", "act"], "gitlab:refresh": ["gitlab:refresh", "nav"],
+  "notion:card:*": ["notion:card:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "nav"], "notion:open:*": ["notion:open:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "nav"],
+  "notion:move:*:*": ["notion:move:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:Done", "act"],
+  thread: ["thread", "nav"], "thread:": ["thread:release|s1", "act"], "thread:kind|*|*": ["thread:kind|s1|bug", "act"], "thread:release|*": ["thread:release|s1", "act"],
   "thread:confirm|*": ["thread:confirm|s1", "nav"], "thread:resolve|*": ["thread:resolve|s1", "act"], "thread:forget|*": ["thread:forget|*", "act"],
   "update:next": ["update:next", "act"], "update:save": ["update:save", "act"], "update:skip": ["update:skip", "act"]
 };
@@ -661,6 +666,21 @@ function views(mod, f) {
     submit() { f.effects.push("review submit"); }, openRecipients() {}, setScope() {}, setMode() {}, load() {}, withOpen: (d) => d, focusFacts: () => null });
   const code = Object.create(mod.Code.prototype);
   Object.assign(code, { save() { f.effects.push("code save"); } });
+  const gitlab = Object.create(mod.GitlabPage.prototype);
+  Object.assign(gitlab, { link: {}, data: {}, details: new Map(), busy: new Set(), tab: "activity", project: null, gen: 0,
+    reload() { f.effects.push("gitlab reload"); }, refresh() {} });
+  const notionBoard = {
+    key: "collection://11111111-1111-1111-1111-111111111111",
+    title: "Acme Tasks",
+    shape: { title: "Task", by: "Status", kind: "status", columns: [{ name: "Backlog", done: false }, { name: "Done", done: true }], extras: [] },
+    cards: [{ id: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", url: "https://app.notion.com/p/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", title: "Ship it", status: "Backlog", fields: [] }],
+    doneCards: [],
+  };
+  const notion = Object.create(mod.Notion.prototype);
+  Object.assign(notion, { boardUI: new Map(), busy: null, pins: [], currentPin: null, detail: { kind: "database", title: "Acme Tasks", url: "https://app.notion.com/p/cccccccccccccccccccccccccccccccc", board: notionBoard },
+    moveCard: (_board, _card, column) => f.effects.push(`notion moved to ${column}`),
+    openCard: () => f.effects.push("notion card"), open: () => f.effects.push("notion open"),
+    togglePin: () => f.effects.push("notion pin"), toggleDone: () => f.effects.push("notion done"), refreshBoard: () => f.effects.push("notion refresh") });
   const palette = Object.create(mod.Palette.prototype);
   Object.assign(palette, { input: { set_value: () => f.effects.push("palette typed") }, changed() {}, sheet: null, dismiss() {}, setSheet() {} });
   // The update dialog on the options an update brought, one picked differently, and Flow settings on its Options tab.
@@ -671,7 +691,7 @@ function views(mod, f) {
   Object.assign(settings, { p: {}, tab: "options", all: false, at: 0, optionAt: 0, pointed: true, asking: null, report: null, toasts: toasts(), handle: focus(), rowAt: {},
     options: [{ key: "chat.nextSteps", title: "Suggest next prompts", kind: "toggle", value: false }, { key: "agents.pace", title: "Pace of the 7-day limit", kind: "choice", value: "week", choices: [{ value: "week", label: "Whole week" }, { value: "weekdays", label: "Weekdays" }] }],
     saving: new Set(), errors: {}, fields: new Map(), drafts: {}, field: null, hubState: "live", v: null, checking: false });
-  const all = { sidebar, home: h, runbook, monitor, routines, mail, meetings, todo, show, start, review, code, palette, update, settings };
+  const all = { sidebar, home: h, runbook, monitor, routines, mail, meetings, todo, show, start, review, code, gitlab, notion, palette, update, settings };
   const armed = () => ({ home: h.confirm, runbook: runbook.confirm, monitor: monitor.confirm, routines: routines.confirm, startTyped: start.started, homeSel: h.sel, picked: runbook.picked.size,
     options: update.pointed && settings.pointed ? null : "armed", updateStep: update.at });
   return { all, armed };

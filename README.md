@@ -52,7 +52,7 @@ yours. `--copy` copies the files instead of linking them, and `--switch` shows t
 ## Looks
 
 Flow comes as three layouts with the same blocks and keys, each opening in its own look, light and dark. Switch with
-`⌘⇧L`, in Settings → Look, or in Flow settings → Layout:
+`⌘⇧L`, in Settings → Look, or in Flow settings → Look:
 
 - **Flow** (`flow`, themes `flow` and `flow-light`): Flow's own teal.
 - **Mist** (`flow-mist`, themes `flow-mist` and `flow-mist-light`): cool lavender greys and a periwinkle accent, with
@@ -67,6 +67,23 @@ Flow comes as three layouts with the same blocks and keys, each opening in its o
 
 `layouts/flow-mist.json` and `layouts/flow-daylight.json` are written from `layouts/flow.json`, with the changes
 `scripts/looks.json` gives each look, and their key sections from `layout:flow`, by `python3 scripts/looks.py`.
+
+## Settings
+
+**Flow settings** (from the palette, or the entry at the foot of the sidebar) is built around Flow's window, not
+cockpit's whole config:
+
+- **Flow**: a drawing of the window, what is open, what needs you, and the keys worth knowing.
+- **Look**: Flow, Mist and Daylight, each in light and dark, with its own colours and a switch.
+- **Agents**: who new work starts, how agents are named, the 7-day pace, and the agents this machine runs.
+- **Work**: threads, queued prompts and CI, notifications, briefs and recaps, and the apps and browser beside an agent.
+- **Data**: GitLab, GitHub and CI, how often each source is read, and the connectors only `config.json` holds.
+- **Health**: cockpit's checks, the fixes it can run, and the getting-started list.
+- **Advanced**: the cockpit options Flow's own screens do not act on (Start work, cockpit Chat, and anything a later
+  cockpit brings), still saved in `~/.config/cockpit/config.json` as you change them.
+
+Every option is in exactly one tab, and the rail's counts say how many agents are installed, how many checks need a
+look, and which tabs have options an update brought.
 
 ## Threads
 
@@ -142,7 +159,7 @@ run it in a thread on that machine.
 
 ## GitLab
 
-**Connect GitLab**, in Flow settings → Options or the palette, points cockpit's hub at GitLab.com or your company's own
+**Connect GitLab**, in Flow settings → Data or the palette, points cockpit's hub at GitLab.com or your company's own
 server. Pick the kind, give a self-hosted server's address (a page of it pasted whole works too), and choose what to
 read: merge requests (always), pipelines and issues. Flow then:
 
@@ -157,6 +174,34 @@ read: merge requests (always), pipelines and issues. Flow then:
 
 Pipelines replace GitHub's checks as cockpit's CI source, and issues replace your tickets connector; the dialog says so
 before you connect. **Manage** in the same card connects again or disconnects.
+
+The **GitLab screen** (`⌘⌥1`, **GitLab** in the palette, or its tanuki in the sidebar's app strip) reads that server
+whole, straight through the connector:
+your contribution activity and to-dos, merge requests (yours, waiting on your review, and merged) with the state of the
+pipeline on their branch, pipelines per project, the issues assigned to you in your groups (every open one when none
+is), and your projects. `1`–`5` switch tabs, `j`/`k` move, `⏎` opens the row in GitLab, `/` filters, `p` opens the
+project menu, `r` reads again, and `m` has the row's menu. The project menu in the top bar narrows every tab — and the
+reads behind it — to one project; **All projects** brings the rest back. It only reads and opens pages: it never
+merges, retries or comments.
+
+## Notion
+
+The **Notion screen** (`⌘⌥2`, **Notion** in the palette, or its mark in the sidebar's app strip) reads Notion through
+cockpit's connector and Notion's hosted MCP server (`https://mcp.notion.com/mcp`), as the Notion account cockpit is
+signed in with. It lists your pinned pages and databases, favourites and recent pages, searches the workspace, and
+draws a page's content as Markdown. A database becomes its own kanban: its board view decides the columns (its status
+or select property) and the properties each card shows, and a page's inline databases are drawn in place, inside the
+page, so a project page shows its board where the board lives.
+
+A board is a working board, not a picture. Drag a card to another column, use the arrows that appear on it, or pick a
+column from its right-click menu. `a`, the board's **New task**, or a column's `+` adds a card; `d` shows and hides done
+cards; `p` pins the page or database, so the screen opens on it next time. `j`/`k` move the page list, a click opens a
+card's page in Flow, `⏎` opens the page or database in Notion, `/` searches, `r` reads again, and `esc` goes back.
+Moving and creating cards are the only writes: page content and properties stay read-only here.
+
+Sign in the first time from the screen's **Sign in to Notion** button, or with
+`cockpit connector login https://mcp.notion.com/mcp`: cockpit keeps the login, so the screen and your agents share it.
+Only workspace members can connect, and the screen shows what that account can see.
 
 ## What stays cockpit's
 
@@ -173,7 +218,7 @@ before you connect. **Manage** in the same card connects again or disconnects.
 node --experimental-vm-modules --test tests/*.test.mjs      # the mod's tests
 for f in mods/flow/*.js; do node --input-type=module --check < "$f" || echo "$f"; done
 shellcheck -S warning scripts/*.sh
-python3 scripts/preview.py                                 # layouts/flow.svg and the Layout tab's pictures
+python3 scripts/preview.py                                 # layouts/flow.svg and the Look tab's pictures
 ```
 
 `scripts/sandbox.sh` opens a separate Herdr window on cockpit's acme demo world with Flow in it. It needs a cockpit

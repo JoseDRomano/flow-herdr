@@ -40,12 +40,14 @@ import Web from "./web.js";
 import FolderName from "./folder-name.js";
 import MachineForm from "./machine-form.js";
 import GitlabForm from "./gitlab-form.js";
+import GitlabPage from "./gitlab-page.js";
+import Notion from "./notion.js";
 import ThreadForm from "./thread-form.js";
 import TerminalMenu from "./termmenu.js";
 import { TabBar, Brand } from "./tabbar.js";
 import { unkey, testKeys } from "./person.js";
 
-const VIEWS = { code: Code, reader: Reader, monitor: Monitor, "monitor-window": MonitorWindow, routines: Routines, mail: Mail, show: Show, review: Review, files: Files, changes: Changes, recap: Recap, home: Home, status: Status, bell: Bell, activity: Activity, "agent-head": AgentHead, queue: Queue, runbook: Runbook, meetings: Meetings, todo: Todo, sidebar: Sidebar, palette: Palette, menu: Menu, kit: Kit, pane: PaneHeader, update: Update, settings: Settings, diagnostics: Settings, usage: Usage, start: Start, web: Web, "folder-name": FolderName, "machine-form": MachineForm, "gitlab-form": GitlabForm, "thread-form": ThreadForm, "terminal-menu": TerminalMenu, tabs: TabBar, brand: Brand };
+const VIEWS = { code: Code, reader: Reader, monitor: Monitor, "monitor-window": MonitorWindow, routines: Routines, mail: Mail, show: Show, review: Review, files: Files, changes: Changes, recap: Recap, home: Home, status: Status, bell: Bell, activity: Activity, "agent-head": AgentHead, queue: Queue, runbook: Runbook, meetings: Meetings, todo: Todo, sidebar: Sidebar, palette: Palette, menu: Menu, kit: Kit, pane: PaneHeader, update: Update, settings: Settings, diagnostics: Settings, usage: Usage, start: Start, web: Web, "folder-name": FolderName, "machine-form": MachineForm, "gitlab-form": GitlabForm, gitlab: GitlabPage, notion: Notion, "thread-form": ThreadForm, "terminal-menu": TerminalMenu, tabs: TabBar, brand: Brand };
 
 export default class Cockpit extends View {
   init(p, cx) {

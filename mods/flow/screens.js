@@ -21,7 +21,7 @@ const LAYOUTS = {
     stack: "center",
     work: "work",
     first: "home",
-    list: [screen(["home", "Home", "layout-dashboard"], "flow.home"), screen(["work", "Work", "terminal"]), ...APPS.map((a) => screen(a))],
+    list: [screen(["home", "Home", "layout-dashboard"], "flow.home"), screen(["work", "Work", "terminal"]), screen(["gitlab", "GitLab", "gitlab"]), screen(["notion", "Notion", "notion"]), ...APPS.map((a) => screen(a))],
   },
 };
 

@@ -149,6 +149,8 @@
                 }
               ]
             },
+            { "id": "gitlab", "type": "block", "content": { "mod": "flow", "props": { "app": "gitlab" } }, "radius": 16, "background": "background", "shadow": "lg" },
+            { "id": "notion", "type": "block", "content": { "mod": "flow", "props": { "app": "notion" } }, "radius": 16, "background": "background", "shadow": "lg" },
             { "id": "runbook", "type": "block", "content": { "mod": "flow", "props": { "app": "runbook" } }, "radius": 16, "background": "background", "shadow": "lg" },
             { "id": "todo", "type": "block", "content": { "mod": "flow", "props": { "app": "todo" } }, "radius": 16, "background": "background", "shadow": "lg" },
             { "id": "meetings", "type": "block", "content": { "mod": "flow", "props": { "app": "meetings" } }, "radius": 16, "background": "background", "shadow": "lg" },

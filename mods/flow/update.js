@@ -562,7 +562,7 @@ export default class Update {
       const said = (fallback) => (this.error ? words(this.error, k.destructive) : words(this.hint ?? (this.done ? `${this.done}. ${fallback}` : fallback)));
       if (step === "options") {
         return row
-          .child(said("You can change them later in Flow settings, under Options."))
+          .child(said("You can change them later in Flow settings."))
           .when(this.saving, (e) => e.child(Spinner({ size: 13 })))
           .child(Button("update-skip", { label: "Skip", variant: "ghost", size: "sm", disabled: this.saving, tooltip: "Keep them as they are", onClick: (_e, cx) => this.skip(cx) }))
           .child(Button("update-save", { label: last ? "Save" : "Save and continue", icon: "check", size: "sm", disabled: this.saving, kbd: "⏎", onClick: (_e, cx) => this.save(cx) }));

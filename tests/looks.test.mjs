@@ -60,16 +60,25 @@ test("Flow itself opens in its classic themes", () => {
   assert.deepEqual(flow.theme, { light: "flow-light", dark: "flow" });
 });
 
-test("Daylight's cards are glass over its sky, and each of its themes names that sky", async () => {
+test("Daylight's sky glows on the chrome, never through its cards, and each theme names it", async () => {
   const look = JSON.parse(await read("layouts/flow-daylight.json"));
+  const byId = (node, id) =>
+    !node || typeof node !== "object" ? null : node.id === id ? node : [...(node.children ?? []), ...(node.floating ?? [])].map((c) => byId(c, id)).find(Boolean) ?? null;
   const body = look.children.find((c) => c.id === "body");
   assert.deepEqual(body.background, { gradient: ["sky_rise_from", "sky_rise"], angle: 180 });
-  const home = JSON.stringify(look).match(/"id":"home-board"[^}]*}[^}]*}/)?.[0] ?? "";
-  assert.ok(!home.includes("shadow"), "a shadow under glass greys it");
+  const board = byId(look, "home-board");
+  assert.equal(board.shadow, undefined, "a shadow under glass greys it");
+  const card = { gradient: ["sky_card_top", "sky_card_bottom"], angle: 180 };
+  assert.deepEqual(board.background, card, "a card is painted, so the dawn never tints the terminals");
+  assert.deepEqual(byId(look, "main").content.pane.background, card, "a pane frame is painted too");
   for (const t of ["flow-daylight", "flow-daylight-dawn", "flow-daylight-light", "flow-daylight-light-dawn"]) {
     const { colors, background } = JSON.parse(await read(`themes/${t}.json`));
     assert.match(background, /^#[0-9a-f]{6}$/, `${t}: the terminals' background stays opaque`);
-    assert.match(colors.background, /^#[0-9a-f]{8}$/, `${t}: its cards are see-through`);
-    for (const k of ["sky_rise_from", "sky_rise", "sky_floor", "sky_ink", "glass_line", "glass_focus", "quota", "need", "need_ring"]) assert.ok(colors[k], `${t} names ${k}`);
+    assert.match(colors.background, /^#[0-9a-f]{8}$/, `${t}: its screens' own cards stay see-through`);
+    for (const k of ["sky_card_top", "sky_card_bottom"]) {
+      if (t.endsWith("-dawn")) assert.match(colors[k], /^#[0-9a-f]{6}$/, `${t}: ${k} is opaque, so the main component never glows`);
+      else assert.equal(colors[k], colors.background, `${t}: ${k} keeps the night cards as they are`);
+    }
+    for (const k of ["sky_rise_from", "sky_rise", "sky_floor", "sky_ink", "sky_card_top", "sky_card_bottom", "glass_line", "glass_focus", "quota", "need", "need_ring"]) assert.ok(colors[k], `${t} names ${k}`);
   }
 });

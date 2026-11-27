@@ -1,8 +1,8 @@
-// Flow settings: every option of config.json, saved by the person's click or key (`act options set`), the checks of
-// `cockpit doctor --json` with their fixes, the agents, the two layouts to switch between, and the installed and published
-// versions with a check on demand.
-// It also makes the "Getting started" checklist for the empty states; a confirmed fix runs the doctor's own command or
-// action through the hub (`act doctor fix`, or `act doctor fix_all` for Fix all), never one this sends.
+// Flow settings, built around Flow's window rather than cockpit's whole config: the layout at a glance, the three looks,
+// the agents and the options Flow's screens act on, the data sources, and the doctor's checks with their fixes. Every
+// other cockpit option stays under Advanced, saved through the hub (`act options set`). It also makes the "Getting
+// started" checklist for the empty states; a confirmed fix runs the doctor's own command or action through the hub
+// (`act doctor fix`, or `act doctor fix_all` for Fix all), never one this sends.
 
 import { div, image } from "gpui-kit";
 import * as base from "gpui-base";
@@ -15,7 +15,8 @@ import { versions, checkNow, versionLine, openUpdate } from "./update.js";
 import { shownLayout } from "./screens.js";
 import { openGitlabForm, readGitlab, GITLAB_SHARED } from "./gitlab-form.js";
 import { SECTIONS } from "./gitlab.js";
-import { tokens, TEXT, RADIUS, Icon, Button, Badge, Tabs, Skeleton, Spinner, Toaster, Mono, Card, AlertDialog, Toggle, AgentLogo, Pills, TextField, viewport } from "./ui.js";
+import { tokens, alpha, TEXT, RADIUS, Icon, Kbd, Button, Badge, Skeleton, Spinner, Toaster, Mono, AlertDialog, Toggle, AgentLogo, Pills, TextField, viewport } from "./ui.js";
+import { THREADS } from "./threads.js";
 
 // A Herdr without ScrollHandle still draws the sheet; j/k then move without scrolling.
 const ScrollHandle = base.ScrollHandle ?? null;
@@ -61,14 +62,27 @@ const CONFIRM_AFTER_MS = 400;
 const READ_MS = 10_000;
 const CHECKS_MS = 90_000;
 
-/** The tabs in order, by their number key. */
-const TABS = ["options", "health", "agents", "layout"];
+/** The tabs in order, by their number key: Flow's own, then the cockpit options it uses, then everything else. */
+const TABS = ["flow", "look", "agents", "work", "data", "health", "advanced"];
 
-/** The Flow layout the Layout tab offers, with what it is for in a few plain lines. */
+/** The left rail: what each tab is for, in the order it lists them. */
+const NAV = [
+  { id: "flow", label: "Flow", icon: "layout-dashboard", hint: "The window at a glance" },
+  { id: "look", label: "Look", icon: "palette", hint: "Flow, Mist and Daylight" },
+  { id: "agents", label: "Agents", icon: "bot", hint: "Who runs, and how they are named" },
+  { id: "work", label: "Work", icon: "workflow", hint: "Threads, prompts, briefs and apps" },
+  { id: "data", label: "Data", icon: "server", hint: "GitHub, CI, GitLab and the rest" },
+  { id: "health", label: "Health", icon: "shield-check", hint: "Checks, fixes and getting started" },
+  { id: "advanced", label: "Advanced", icon: "sliders-horizontal", hint: "Cockpit options Flow does not use" },
+];
+
+/** The Flow layout the Look tab offers, with what it is for in a few plain lines and the colours that set it apart. */
 export const LAYOUT_CHOICES = [
   {
     name: "flow",
     title: "Flow",
+    tagline: "Flow's own teal",
+    colors: { dark: ["#0c1012", "#5fd4c4", "#7fb2f0"], light: ["#efede7", "#0f8576", "#2f67b5"] },
     points: [
       "One bar across the top: your tabs, the search and the bell",
       "Your agents' terminals as soft cards, review and runbooks beside them",
@@ -79,6 +93,8 @@ export const LAYOUT_CHOICES = [
   {
     name: "flow-mist",
     title: "Mist",
+    tagline: "Cool lavender, lit from above",
+    colors: { dark: ["#0d0d15", "#9c9fff", "#8f96e0"], light: ["#ebebf2", "#5a5de6", "#6a74b8"] },
     points: [
       "Flow with cool lavender greys and a periwinkle accent",
       "Cards float on a sky lit from above, with no bands for the bars",
@@ -88,6 +104,8 @@ export const LAYOUT_CHOICES = [
   {
     name: "flow-daylight",
     title: "Daylight",
+    tagline: "A sky that follows your agents",
+    colors: { dark: ["#1c2257", "#b9c4ff", "#8e9ae8"], light: ["#f1f4fa", "#4a5bd6", "#5a72c0"] },
     points: [
       "Flow under a sky that follows your agents",
       "Night while they work, a clear blue day in light mode",
@@ -95,6 +113,57 @@ export const LAYOUT_CHOICES = [
     ],
   },
 ];
+
+/** The option keys each Flow tab shows, in the order it lists them: what Flow's own screens act on. */
+const GROUPS = {
+  agents: [
+    { id: "default", icon: "bot", title: "The agent cockpit starts", description: "The agent Start work, a routine or a one-off job starts when nothing else says which.", keys: ["agents.default"] },
+    { id: "names", icon: "sparkles", title: "Names and links", description: "How agents, tabs and spaces are named, and whether their branch names carry links too.", keys: ["names", "links.fromBranch"] },
+    { id: "pace", icon: "gauge", title: "The 7-day quota", description: "Where the pace tick on the usage bars stands.", keys: ["agents.pace"] },
+  ],
+  work: [
+    { id: "queue", icon: "send", title: "Queue and CI", description: "What happens to a queued prompt, and what CI tells the agent that caused it.", keys: ["queue.drain", "ci.tellAgents", "github.reviewBots"] },
+    {
+      id: "notifications",
+      icon: "bell",
+      title: "Notifications",
+      description: "When Flow calls you: in the app, for a release, or on the Dock.",
+      keys: ["notifications", "monitor.notify", "dockBadge"],
+    },
+    {
+      id: "briefs",
+      icon: "newspaper",
+      title: "Briefs and recaps",
+      description: "The morning brief, the recap when you come back, meeting briefs and the check after a deploy.",
+      keys: ["brief.enabled", "brief.at", "brief.weekends", "recap.enabled", "recap.awayMinutes", "agents.recap", "meetingBrief.enabled", "meetingBrief.model", "deployWatch.enabled", "deployWatch.afterMinutes"],
+    },
+    {
+      id: "apps",
+      icon: "app-window",
+      title: "Apps and the browser",
+      description: "Rows, your editor, links clicked in a terminal, and the browser beside an agent.",
+      keys: ["density", "editor", "e2eBrowser", "browserIdleMinutes", "sideBrowser", "links.open", "browser.dock", "browser.profileScope", "browser.popups", "browser.downloads"],
+    },
+  ],
+  data: [
+    { id: "github", icon: "git-pull-request", title: "GitHub", description: "Your pull requests and the reviews asked of you, read through gh.", keys: ["github.enabled", "github.org"] },
+    { id: "ci", icon: "workflow", title: "CI and background reads", description: "The CI runs of your pull requests, and the session that reads what the hub cannot.", keys: ["ci.enabled", "fetcher"] },
+    {
+      id: "refresh",
+      icon: "refresh-cw",
+      title: "Refresh",
+      description: "How often each source is read. A shorter wait spends more of your rate limits.",
+      keys: ["refresh.github", "refresh.tickets", "refresh.ci", "refresh.mail", "refresh.calendar", "refresh.platform", "refresh.monitor"],
+    },
+  ],
+};
+
+/** The options the Flow tabs above show, so Advanced can keep every other cockpit option in one place. */
+const PLACED = new Set(Object.values(GROUPS).flatMap((groups) => groups.flatMap((g) => g.keys)));
+
+/** A tab by the name a caller gives it; cockpit's older names still open their Flow tab. */
+const tabOf = (name) =>
+  TABS.includes(name) ? name : name === "layout" || name === "look" ? "look" : name === "options" || name === "work" ? "work" : name === "sources" || name === "data" ? "data" : name === "problems" || name === "all" || name === "health" ? "health" : null;
 
 /** The size the layout pictures are saved at, for their height at any width. */
 const PICTURE = { w: 800, h: 512 };
@@ -110,15 +179,12 @@ export function isDark(color) {
 /** A layout's picture for the window's theme, as `image()` takes it from the Herdr app's home. */
 export const layoutPicture = (name, dark) => `mods/flow/layouts/${name}-${dark ? "dark" : "light"}.png`;
 
-/** A tab by the name a caller gives it; the checks' two older names both mean Health. */
-const tabOf = (name) => (TABS.includes(name) ? name : name === "problems" || name === "all" ? "health" : null);
-
 /** The sheet's width: 860 px, or the window's width less a margin on each side when it is narrower. */
 export const sheetWidth = (window = viewport()) => (window?.width ? Math.max(320, Math.min(860, Math.floor(window.width) - 32)) : 860);
 
 /**
- * Opens Flow settings: a window over the cockpit, on `tab` when given (options, health, agents, layout). `person` when the
- * person's click, key or palette pick opened it: what it shows counts as seen at once.
+ * Opens Flow settings: a window over the cockpit, on `tab` when given (flow, look, agents, work, data, health,
+ * advanced). `person` when the person's click, key or palette pick opened it: what it shows counts as seen at once.
  */
 export function openSettings({ tab = null, person = false } = {}) {
   openOverlay({ mod: "flow", kind: "window", key: "flow-settings", width: sheetWidth(), height: 0.86, props: { app: "settings", tab, person: Boolean(person) } });
@@ -467,7 +533,7 @@ export default class Settings {
     this.report = null;
     this.error = null;
     this.running = false;
-    this.tab = tabOf(this.p.tab) ?? "options";
+    this.tab = tabOf(this.p.tab) ?? "flow";
     /** Health lists every check, not only the ones that need a look. */
     this.all = this.p.tab === "all";
     this.at = 0;
@@ -557,6 +623,25 @@ export default class Settings {
     return draft !== undefined && draft !== String(value ?? "");
   }
 
+  /** The options a tab lists, in its own order: the curated groups, or every option Advanced keeps. */
+  optionList(tab = this.tab) {
+    const all = this.options ?? [];
+    if (tab === "advanced") return all.filter((o) => !PLACED.has(o.key));
+    const groups = GROUPS[tab];
+    if (!groups) return [];
+    const order = groups.flatMap((g) => g.keys);
+    return order.map((key) => all.find((o) => o.key === key)).filter(Boolean);
+  }
+
+  /** Selects an option and brings its card into view; the cursor is the option's place in the whole list. */
+  selectOption(o) {
+    const at = (this.options ?? []).findIndex((x) => x.key === o?.key);
+    if (at < 0) return;
+    this.optionAt = at;
+    const row = this.rowAt[`option:${o.key}`];
+    if (row !== undefined) this.scroll?.scroll_to_item(row);
+  }
+
   /** A text or number option's input, on its value: typing notes a draft, ⏎ saves it. */
   fieldFor(o) {
     const state = InputState.new({ placeholder: o.kind === "number" ? String(o.default ?? "") : (o.blank ?? ""), value: String(o.value ?? "") });
@@ -601,6 +686,8 @@ export default class Settings {
       }
     }
     this.optionAt = Math.min(this.optionAt, Math.max(0, this.options.length - 1));
+    const visible = this.optionList();
+    if (visible.length && !visible.some((o) => this.options.indexOf(o) === this.optionAt)) this.optionAt = this.options.indexOf(visible[0]);
     this.seenShown();
   }
 
@@ -609,8 +696,8 @@ export default class Settings {
    * marks while the sheet is open. A sheet a bare command opened notes nothing.
    */
   seenShown() {
-    const unseen = (this.options ?? []).filter((o) => !o.seen && !this.noted?.has(o.key)).map((o) => o.key);
-    if (!this.person || this.tab !== "options" || !unseen.length) return;
+    const unseen = this.optionList().filter((o) => !o.seen && !this.noted?.has(o.key)).map((o) => o.key);
+    if (!this.person || !unseen.length) return;
     this.noted = new Set([...(this.noted ?? []), ...unseen]);
     hub.act("options", "shown", [{ keys: unseen }]).catch(() => {});
   }
@@ -651,8 +738,7 @@ export default class Settings {
         this.patch(o.key, { value: before });
         this.errors[o.key] = String(e?.message ?? e).replace(/^set: /, "");
         // Why it was not saved shows under the option: it comes into view.
-        const at = (this.options ?? []).findIndex((x) => x.key === o.key);
-        if (at >= 0) this.pick(at);
+        this.selectOption((this.options ?? []).find((x) => x.key === o.key) ?? o);
       }
       this.saving.delete(o.key);
       cx.notify();
@@ -739,12 +825,15 @@ export default class Settings {
 
   /** Shows a tab from its top, j/k starting there; ⏎ and space wait again for a move or a click on a row of it. */
   show(tab) {
-    if (tab !== this.tab) {
+    const next = tabOf(tab) ?? this.tab;
+    if (next !== this.tab) {
       this.scroll?.scroll_to_item(0);
       this.pointed = true;
     }
-    this.tab = tab;
+    this.tab = next;
     this.at = 0;
+    const visible = this.optionList();
+    if (visible.length && !visible.some((o) => this.options.indexOf(o) === this.optionAt)) this.optionAt = this.options.indexOf(visible[0]);
     this.seenShown();
   }
 
@@ -849,13 +938,15 @@ export default class Settings {
       this.leaveField(cx);
       return true;
     }
-    const options = this.tab === "options" ? (this.options ?? []) : null;
-    const o = options?.[this.optionAt];
+    const options = this.optionList();
+    const hasOptions = options.length > 0;
+    const at = Math.max(0, options.findIndex((x) => (this.options ?? []).indexOf(x) === this.optionAt));
+    const o = hasOptions ? options[at] : null;
     const move = ["j", "k", "down", "up"].includes(s);
     if (move && own) this.pointed = false;
-    const turns = Boolean(options) && ["h", "l", "left", "right"].includes(s) && o?.kind === "choice" && !o.by_hand;
+    const turns = hasOptions && ["h", "l", "left", "right"].includes(s) && o?.kind === "choice" && !o.by_hand;
     const fixesAll = this.tab === "health" && s === "f" && fixAll(this.report).items.length > 1;
-    const acts = turns || (options && (s === "space" || s === "enter" || s === "o")) || (!options && s === "enter" && shown[this.at]?.fix) || fixesAll;
+    const acts = turns || (hasOptions && (s === "space" || s === "enter" || s === "o")) || (!hasOptions && s === "enter" && shown[this.at]?.fix) || fixesAll;
     if (acts && !own) return true;
     if (acts && this.pointed) {
       this.toasts.push(cx, MOVE_FIRST, { kind: "info" });
@@ -864,13 +955,13 @@ export default class Settings {
     if (s === "escape") this.dismiss();
     else if (s === "u") this.checkUpdates(cx);
     else if (s === "shift-r" || s === "r") this.check(cx);
-    else if (["1", "2", "3", "4"].includes(s)) this.show(TABS[Number(s) - 1]);
+    else if (/^[1-9]$/.test(s) && TABS[Number(s) - 1]) this.show(TABS[Number(s) - 1]);
     else if (s === "a" && this.tab === "health") (this.all = !this.all), (this.at = 0), (this.pointed = true);
-    else if (s === "o" && options) this.openFile(cx);
-    else if (options && (s === "j" || s === "down")) this.pick(Math.min(this.optionAt + 1, Math.max(0, options.length - 1)));
-    else if (options && (s === "k" || s === "up")) this.pick(Math.max(this.optionAt - 1, 0));
+    else if (s === "o" && hasOptions) this.openFile(cx);
+    else if (hasOptions && (s === "j" || s === "down")) this.selectOption(options[Math.min(at + 1, options.length - 1)]);
+    else if (hasOptions && (s === "k" || s === "up")) this.selectOption(options[Math.max(at - 1, 0)]);
     else if (turns) this.setOption(o, turned(o, s === "h" || s === "left" ? -1 : 1), cx);
-    else if (options && (s === "space" || s === "enter")) this.press(o, s, cx);
+    else if (hasOptions && (s === "space" || s === "enter")) this.press(o, s, cx);
     else if (s === "j" || s === "down") this.reveal(Math.min(this.at + 1, Math.max(0, shown.length - 1)), shown);
     else if (s === "k" || s === "up") this.reveal(Math.max(this.at - 1, 0), shown);
     else if (s === "enter" && shown[this.at]?.fix) this.ask(shown[this.at], cx);
@@ -1080,6 +1171,72 @@ export default class Settings {
       .child(div().pt(2).flex_none().child(this.control(k, o, i)));
   }
 
+  /** A small icon tile, the mark at the head of a settings card. */
+  iconTile(k, icon, { tone = null, size = 28 } = {}) {
+    return h_flex()
+      .size(size)
+      .flex_none()
+      .items_center()
+      .justify_center()
+      .rounded(RADIUS.md)
+      .bg(tone ? alpha(tone, 0.12) : k.muted)
+      .child(Icon(icon, { size: Math.round(size * 0.55), color: tone ?? k.foreground }));
+  }
+
+  /** A card with an icon, a title and a line: the shape every Flow setting is grouped in. */
+  settingsCard(k, { id, icon, title, description, action = null, tone = null, children = [] }) {
+    return v_flex()
+      .id(id)
+      .mb(12)
+      .w_full()
+      .min_w(0)
+      .rounded(RADIUS.xl)
+      .border_1()
+      .border_color(k.border)
+      .bg(k.card)
+      .overflow_hidden()
+      .child(
+        h_flex()
+          .p(14)
+          .gap(10)
+          .items_start()
+          .child(this.iconTile(k, icon, { tone }))
+          .child(
+            v_flex()
+              .flex_1()
+              .min_w(0)
+              .gap(2)
+              .child(div().text_size(TEXT.base).font_semibold().text_color(k.foreground).child(title))
+              .when(Boolean(description), (e) => e.child(div().whitespace_normal().text_size(TEXT.sm).text_color(k.mutedFg).child(description))),
+          )
+          .when(Boolean(action), (e) => e.child(action)),
+      )
+      .children(children);
+  }
+
+  /** One group of options as a card: its icon and line, then its rows, each still set by its own control. */
+  optionCard(k, group) {
+    const all = this.options ?? [];
+    const options = group.keys.map((key) => all.find((o) => o.key === key)).filter(Boolean);
+    if (!options.length) return null;
+    return this.settingsCard(k, {
+      id: `group-${group.id}`,
+      icon: group.icon,
+      title: group.title,
+      description: group.description,
+      children: [v_flex().px(10).pb(6).children(options.map((o) => this.optionRow(k, o, all.indexOf(o))))],
+    });
+  }
+
+  /** Draws a group of options and notes the card's row for j/k, since a card can hold several options. */
+  pushOptionCard(rows, k, group) {
+    const card = this.optionCard(k, group);
+    if (!card) return;
+    const at = rows.length;
+    for (const key of group.keys) if ((this.options ?? []).some((o) => o.key === key)) this.rowAt[`option:${key}`] = at;
+    rows.push(card);
+  }
+
   /** What config.json holds that no switch or field sets, each key with its line, and the button that opens the file. */
   fileRows(k) {
     const open = Button("options-open-file", { label: `Open config.json in ${this.editor}`, icon: "external", variant: "outline", size: "sm", kbd: "O", tooltip: "~/.config/cockpit/config.json", onClick: (_e, cx) => this.openFile(cx) });
@@ -1136,13 +1293,15 @@ export default class Settings {
   }
 
   /**
-   * The Options tab's rows: every option section by section, then what only the file holds. While the hub does not
-   * answer it says so with Start it, and still opens the file.
+   * The cockpit options as rows, section by section: Advanced's whole list, or with `omit` the ones no Flow tab
+   * shows. `gitlab` and `file` keep the GitLab card and the list only the file holds; `description` replaces the line
+   * above them. While the hub does not answer it still opens the file and connects GitLab.
    */
-  optionRows(k) {
+  optionRows(k, { gitlab = true, file = true, omit = null, description = null } = {}) {
     const down = this.hubRow(k, "options-hub");
+    const loading = [...(down ? [div().pb(12).child(down)] : []), ...(gitlab ? [this.gitlabRow(k)] : []), v_flex().gap(10).p(24).children([0, 1, 2].map((i) => Skeleton({ h: 16, w: 260 + i * 80 })))];
     if (!this.options) {
-      if (!down || this.hubState === "connecting") return [...(down ? [div().pb(12).child(down)] : []), v_flex().gap(10).p(24).children([0, 1, 2].map((i) => Skeleton({ h: 16, w: 260 + i * 80 })))];
+      if (!down || this.hubState === "connecting") return loading;
       return [
         down,
         h_flex()
@@ -1152,21 +1311,23 @@ export default class Settings {
           .items_center()
           .child(div().flex_1().min_w(0).whitespace_normal().text_size(TEXT.sm).text_color(k.mutedFg).child("The options are read and saved through the hub. config.json itself opens without it, and cockpit options lists them in a terminal."))
           .child(Button("options-open-file", { label: `Open config.json in ${this.editor}`, icon: "external", variant: "outline", size: "sm", onClick: (_e, cx) => this.openFile(cx) })),
-        this.gitlabRow(k),
+        ...(gitlab ? [this.gitlabRow(k)] : []),
       ];
     }
-    if (!this.options.length) return [div().p(24).text_size(TEXT.sm).text_color(k.mutedFg).child("This cockpit has no options to set from here: cockpit options lists them in a terminal.")];
+    if (!this.options.length) return [...(gitlab ? [this.gitlabRow(k)] : []), div().p(24).text_size(TEXT.sm).text_color(k.mutedFg).child("This cockpit has no options to set from here: cockpit options lists them in a terminal.")];
     const rows = down ? [div().pb(12).child(down)] : [];
-    rows.push(div().pb(4).text_size(TEXT.sm).text_color(k.mutedFg).child("Saved in ~/.config/cockpit/config.json as you change them; cockpit options lists them in a terminal."));
-    rows.push(this.gitlabRow(k));
+    rows.push(div().pb(4).text_size(TEXT.sm).text_color(k.mutedFg).child(description ?? "Saved in ~/.config/cockpit/config.json as you change them; cockpit options lists them in a terminal."));
+    if (gitlab) rows.push(this.gitlabRow(k));
     for (const section of sectioned(this.view)) {
+      const kept = section.rows.filter(([o]) => !omit || !omit.has(o.key));
+      if (!kept.length) continue;
       rows.push(heading(k, `section-${section.title}`, section.title, true));
-      for (const [o, i] of section.rows) {
+      for (const [o, i] of kept) {
         this.rowAt[`option:${o.key}`] = rows.length;
         rows.push(this.optionRow(k, o, i));
       }
     }
-    rows.push(...this.fileRows(k));
+    if (file) rows.push(...this.fileRows(k));
     this.rowAt.end = rows.length - 1;
     return rows;
   }
@@ -1178,62 +1339,450 @@ export default class Settings {
   useLayout(name) {
     const choice = LAYOUT_CHOICES.find((l) => l.name === name);
     if (!choice || name === shownLayout()) return;
-    notify({ title: `This is ${choice.title}`, body: "Flow settings, under Layout, switches back.", level: "info", timeout: 8000 });
+    notify({ title: `This is ${choice.title}`, body: "Flow settings, under Look, switches back.", level: "info", timeout: 8000 });
     this.dismiss();
     run("layout.switch", { name });
   }
 
-  /** The Layout tab: a card per Flow layout with its picture in the window's theme, two to a row, stacked when narrow. */
+  /**
+   * The Look tab: one wide card per Flow look, each with its light and dark picture side by side, its colours and what
+   * sets it apart. Narrow, the two pictures stack.
+   */
   layoutEl(k) {
     const shown = shownLayout();
-    const dark = isDark(k.background);
-    const room = Math.max(280, (this.width ?? 860) - 40);
-    const stacked = room < 600;
-    const cardW = stacked ? room : Math.floor((room - 16) / 2);
-    const picW = cardW - 26;
+    const room = this.contentWidth();
+    const stacked = room < 560;
+    const cardW = room;
+    const picW = stacked ? cardW - 26 : Math.floor((cardW - 26 - 10) / 2);
+    const picH = Math.round((picW * PICTURE.h) / PICTURE.w);
+    const swatch = (color, tip) => div().size(10).rounded(5).bg(color).border_1().border_color(alpha(k.foreground, 0.16)).tooltip(tip);
+    const picture = (l, dark) =>
+      v_flex()
+        .gap(5)
+        .child(
+          div()
+            .rounded(RADIUS.md)
+            .overflow_hidden()
+            .border_1()
+            .border_color(k.border)
+            .child(image(layoutPicture(l.name, dark)).w(picW).h(picH)),
+        )
+        .child(
+          h_flex()
+            .gap(6)
+            .items_center()
+            .child(Icon(dark ? "moon" : "sun", { size: 11, color: k.mutedFg }))
+            .child(div().text_size(TEXT.xs).text_color(k.mutedFg).child(dark ? "Dark" : "Light"))
+            .child(div().flex_1())
+            .children((l.colors?.[dark ? "dark" : "light"] ?? []).map((color, i) => swatch(color, ["Chrome", "Accent", "Working"][i]))),
+        );
     const card = (l) => {
       const using = l.name === shown;
       return v_flex()
         .id(`layout-${l.name}`)
         .w(cardW)
         .flex_none()
-        .gap(12)
+        .gap(10)
         .p(12)
-        .rounded(RADIUS.lg)
+        .rounded(RADIUS.xl)
         .border_1()
         .border_color(using ? k.ring : k.border)
-        .child(div().rounded(RADIUS.md).overflow_hidden().border_1().border_color(k.border).child(image(layoutPicture(l.name, dark)).w(picW).h(Math.round((picW * PICTURE.h) / PICTURE.w))))
+        .bg(k.card)
         .child(
           h_flex()
-            .h(28)
             .gap(8)
             .items_center()
-            .child(div().flex_1().min_w(0).truncate().text_size(TEXT.lg).font_semibold().text_color(k.foreground).child(l.title))
+            .child(
+              v_flex()
+                .flex_1()
+                .min_w(0)
+                .child(div().truncate().text_size(TEXT.lg).font_semibold().text_color(k.foreground).child(l.title))
+                .child(div().truncate().text_size(TEXT.xs).text_color(k.mutedFg).child(l.tagline)),
+            )
             .when(using, (e) => e.child(Badge("In use", "secondary", { icon: "check" })))
             .when(!using, (e) =>
-              e.child(Button(`layout-use-${l.name}`, { label: "Use this layout", icon: "layout", size: "sm", tooltip: `Switch this window to ${l.title}`, onClick: () => this.useLayout(l.name) })),
+              e.child(Button(`layout-use-${l.name}`, { label: "Use this look", icon: "layout", size: "sm", tooltip: `Switch this window to ${l.title}`, onClick: () => this.useLayout(l.name) })),
             ),
         )
+        .child((stacked ? v_flex() : h_flex().items_start()).gap(10).children([picture(l, false), picture(l, true)]))
         .child(
           v_flex()
-            .gap(6)
+            .gap(5)
             .children(
               l.points.map((point) =>
                 h_flex()
                   .gap(8)
                   .items_start()
-                  .child(div().mt(7).size(4).flex_none().rounded(2).bg(k.dim))
-                  .child(div().flex_1().min_w(0).whitespace_normal().text_size(TEXT.base).text_color(k.mutedFg).child(point)),
+                  .child(div().mt(6).size(4).flex_none().rounded(2).bg(k.dim))
+                  .child(div().flex_1().min_w(0).whitespace_normal().text_size(TEXT.sm).text_color(k.mutedFg).child(point)),
               ),
             ),
         );
     };
     return v_flex()
       .gap(12)
-      .child(div().whitespace_normal().text_size(TEXT.sm).text_color(k.mutedFg).child("Three looks for the same agents, apps and hub. Switching keeps everything where it was."))
-      .child((stacked ? v_flex() : h_flex().items_start().flex_wrap()).gap(16).children(LAYOUT_CHOICES.map(card)));
+      .child(
+        v_flex()
+          .gap(4)
+          .child(div().text_size(TEXT.lg).font_semibold().text_color(k.foreground).child("Three looks, one Flow"))
+          .child(div().whitespace_normal().text_size(TEXT.sm).text_color(k.mutedFg).child("The same threads, agents, apps and hub in three moods, each in light and dark. Switching keeps everything where it was.")),
+      )
+      .children(LAYOUT_CHOICES.map(card));
   }
 
+  /** A tiny drawing of the window Flow draws: the bar, the sidebar, the cards, the side panel and the status bar. */
+  blueprint(k) {
+    const chip = (label, { w = null, h = 16, tone = null } = {}) => {
+      let e = v_flex().flex_none().items_center().justify_center().rounded(4).bg(tone ?? k.background);
+      if (w) e = e.w(w);
+      return e.h(h).child(div().truncate().text_size(10).text_color(k.mutedFg).child(label));
+    };
+    const row = (on) => div().h(14).rounded(3).bg(on ? k.selected : k.background).border_1().border_color(alpha(k.border, 0.6));
+    const pane = (label, detail, { w = null } = {}) => {
+      let e = v_flex().flex_1().min_w(0).gap(3).p(8).rounded(RADIUS.md).bg(k.muted);
+      if (w) e = e.w(w);
+      return e
+        .child(div().truncate().text_size(TEXT.xs).font_medium().text_color(k.foreground).child(label))
+        .child(div().truncate().text_size(10).text_color(k.mutedFg).child(detail));
+    };
+    return v_flex()
+      .id("flow-blueprint")
+      .w_full()
+      .gap(6)
+      .p(8)
+      .rounded(RADIUS.lg)
+      .border_1()
+      .border_color(k.border)
+      .bg(alpha(k.muted, 0.45))
+      .child(
+        h_flex()
+          .h(26)
+          .gap(4)
+          .px(6)
+          .items_center()
+          .rounded(RADIUS.md)
+          .bg(k.muted)
+          .child(div().size(8).flex_none().rounded_full().bg(k.ring))
+          .child(chip("Home", { w: 48, tone: k.selected }))
+          .child(chip("Work", { w: 40 }))
+          .child(div().flex_1())
+          .child(Icon("search", { size: 11, color: k.mutedFg }))
+          .child(Icon("bell", { size: 11, color: k.mutedFg })),
+      )
+      .child(
+        h_flex()
+          .h(148)
+          .gap(6)
+          .items_start()
+          .child(
+            v_flex()
+              .w("24%")
+              .h_full()
+              .min_w(52)
+              .gap(3)
+              .p(6)
+              .rounded(RADIUS.md)
+              .bg(k.muted)
+              .child(div().text_size(10).font_medium().text_color(k.mutedFg).child("Threads"))
+              .child(row(true))
+              .child(row(false))
+              .child(row(false))
+              .child(div().flex_1())
+              .child(div().text_size(10).text_color(k.dim).child("Agents")),
+          )
+          .child(
+            v_flex()
+              .flex_1()
+              .h_full()
+              .min_w(0)
+              .gap(6)
+              .child(
+                v_flex()
+                  .flex_1()
+                  .min_h(0)
+                  .gap(2)
+                  .p(8)
+                  .rounded(RADIUS.md)
+                  .bg(k.muted)
+                  .child(div().text_size(TEXT.sm).font_semibold().text_color(k.foreground).child("Home"))
+                  .child(div().truncate().text_size(10).text_color(k.mutedFg).child("What needs you, and what is moving")),
+              )
+              .child(h_flex().flex_1().gap(6).items_start().child(pane("Work", "The agent you are with")).child(pane("Review", "Its work beside it", { w: "34%" }))),
+          )
+          .child(
+            v_flex()
+              .w("19%")
+              .h_full()
+              .min_w(46)
+              .gap(3)
+              .p(6)
+              .rounded(RADIUS.md)
+              .bg(k.muted)
+              .child(div().text_size(10).font_medium().text_color(k.mutedFg).child("Panel"))
+              .child(chip("Show"))
+              .child(chip("Review"))
+              .child(chip("Files")),
+          ),
+      )
+      .child(
+        h_flex()
+          .h(18)
+          .gap(6)
+          .px(6)
+          .items_center()
+          .rounded(4)
+          .bg(k.muted)
+          .child(div().size(5).flex_none().rounded_full().bg(k.success))
+          .child(div().truncate().text_size(9).text_color(k.mutedFg).child("Flow · main machine · this look"))
+          .child(div().flex_1())
+          .child(div().text_size(9).text_color(k.dim).child("⌘/ keys")),
+      );
+  }
+
+  /** One figure in Flow's at-a-glance row, a door to the tab that explains it. */
+  stat(k, { id, icon, label, value, go, tone = null, width = null }) {
+    let e = v_flex()
+      .id(`flow-stat-${id}`)
+      .gap(3)
+      .p(12)
+      .rounded(RADIUS.lg)
+      .border_1()
+      .border_color(k.border)
+      .bg(k.card)
+      .cursor_pointer()
+      .hover((s) => s.bg(k.muted))
+      .on_click((_e, cx) => (this.show(go), cx.notify()));
+    e = width ? e.w(width).flex_none() : e.flex_1().min_w(112);
+    return e
+      .child(h_flex().gap(6).items_center().child(Icon(icon, { size: 13, color: tone ?? k.mutedFg })).child(div().truncate().text_size(TEXT.xs).text_color(k.mutedFg).child(label)))
+      .child(div().truncate().text_size(TEXT.xl).font_semibold().text_color(tone ?? k.foreground).child(String(value)));
+  }
+
+  /** The Flow tab: the window drawn small, the figures that matter, the keys and the doors Flow keeps close. */
+  flowEl(k) {
+    const current = LAYOUT_CHOICES.find((l) => l.name === shownLayout()) ?? LAYOUT_CHOICES[0];
+    const installed = (this.report?.agents ?? []).filter((a) => a.installed).length;
+    const threadState = shared(THREADS) ?? {};
+    const threads = Object.keys(threadState.threads ?? {}).length;
+    const failing = this.report?.summary?.fail ?? 0;
+    const warn = this.report?.summary?.warn ?? 0;
+    const health = !this.report ? "Checking…" : failing ? `${failing} failing` : warn ? `${warn} to look at` : "All clear";
+    const content = this.contentWidth();
+    const perRow = content < 520 ? 2 : 4;
+    const statW = Math.floor((content - (perRow - 1) * 8) / perRow);
+    const rows = [
+      this.settingsCard(k, {
+        id: "flow-window",
+        icon: "layout-dashboard",
+        title: "The Flow window",
+        description: "One bar for the window, threads in the sidebar, the agent you are with in the center, and the work beside it when you need it.",
+        action: Button("flow-herdr-settings", { label: "Herdr settings", icon: "settings", variant: "outline", size: "sm", tooltip: "The app's own look, fonts and keys", onClick: () => run("app.settings") }),
+        children: [div().px(14).pb(14).child(this.blueprint(k))],
+      }),
+      h_flex()
+        .mb(12)
+        .gap(8)
+        .flex_wrap()
+        .children([
+          this.stat(k, { id: "look", icon: "palette", label: "Look", value: current.title, go: "look", width: statW }),
+          this.stat(k, { id: "agents", icon: "bot", label: "Agents installed", value: this.report ? installed : "…", go: "agents", width: statW }),
+          this.stat(k, { id: "threads", icon: "git-branch", label: "Open threads", value: threads, go: "work", width: statW }),
+          this.stat(k, { id: "health", icon: failing ? "triangle-alert" : "circle-check", label: "Health", value: health, go: "health", tone: failing ? k.destructive : !this.report ? null : k.success, width: statW }),
+        ]),
+    ];
+    const shortcuts = this.settingsCard(k, {
+      id: "flow-keys",
+      icon: "keyboard",
+      title: "Everyday keys",
+      description: "The few worth knowing before the rest.",
+      action: Button("flow-keys-all", { label: "All keys", icon: "command", variant: "outline", size: "sm", tooltip: "The window's keys, by what they do", onClick: () => run("flow.keys") }),
+      children: [
+        v_flex()
+          .px(14)
+          .pb(12)
+          .gap(8)
+          .children(
+            [
+              ["cmd-shift-p", "Search or run a command"],
+              ["cmd-n", "Start a thread"],
+              ["cmd-j", "The next agent waiting for you"],
+              ["cmd-shift-l", "Switch look"],
+              ["cmd-alt-b", "Open or close the side panel"],
+              ["cmd-/", "Every key, in one sheet"],
+            ].map(([keys, what]) => h_flex().gap(10).items_center().child(Kbd(keys)).child(div().flex_1().min_w(0).truncate().text_size(TEXT.sm).text_color(k.mutedFg).child(what))),
+          ),
+      ],
+    });
+    const doors = this.settingsCard(k, {
+      id: "flow-doors",
+      icon: "sparkles",
+      title: "At hand",
+      description: "The doors Flow's window keeps close, without a trip to the palette.",
+      children: [
+        h_flex()
+          .px(14)
+          .pb(14)
+          .gap(6)
+          .flex_wrap()
+          .children([
+            Button("flow-new-thread", { label: "New thread", icon: "git-branch", variant: "outline", size: "sm", onClick: () => run("flow.thread") }),
+            Button("flow-add-machine", { label: "Add machine", icon: "plus", variant: "outline", size: "sm", onClick: () => run("mod.open", { name: "machine-add" }) }),
+            Button("flow-gitlab", { label: "Connect GitLab", icon: "git-merge", variant: "outline", size: "sm", onClick: () => openGitlabForm() }),
+            Button("flow-usage", { label: "Usage", icon: "gauge", variant: "outline", size: "sm", onClick: () => run("flow.usage") }),
+          ]),
+      ],
+    });
+    const half = Math.floor((this.contentWidth() - 12) / 2);
+    rows.push(
+      this.contentWidth() < 560
+        ? v_flex().gap(12).children([shortcuts, doors])
+        : h_flex().items_start().gap(12).children([v_flex().w(half).flex_none().min_w(0).child(shortcuts), v_flex().w(half).flex_none().min_w(0).child(doors)]),
+    );
+    return rows;
+  }
+
+  /** The room the tab's content has, after the rail and the body's margins. */
+  contentWidth() {
+    const w = this.width ?? 860;
+    return Math.max(240, w - (w < 720 ? 28 : 254));
+  }
+
+  /** The left rail wide, a wrap of small tabs when the window is narrow. */
+  nav(k, narrow) {
+    const installed = (this.report?.agents ?? []).filter((a) => a.installed).length;
+    const problems = (this.report?.checks ?? []).filter((c) => c.status !== "pass").length + (String(this.hubState).startsWith("error") ? 1 : 0);
+    const unseen = (id) => (this.options ?? []).filter((o) => !o.seen && this.optionList(id).includes(o)).length;
+    const count = (id) => (id === "agents" ? (this.report ? installed : null) : id === "health" ? (this.report ? problems : null) : ["work", "data", "advanced"].includes(id) ? unseen(id) || null : null);
+    const item = (n) => {
+      const active = this.tab === n.id;
+      const number = count(n.id);
+      const tone = n.id === "health" && number ? k.destructive : k.mutedFg;
+      if (narrow) {
+        return h_flex()
+          .id(`settings-nav-${n.id}`)
+          .h(30)
+          .px(8)
+          .gap(5)
+          .flex_none()
+          .items_center()
+          .rounded(RADIUS.md)
+          .cursor_pointer()
+          .bg(active ? k.selected : k.background)
+          .border_1()
+          .border_color(active ? k.border : k.background)
+          .hover((s) => s.bg(k.muted))
+          .on_click((_e, cx) => (this.show(n.id), cx.notify()))
+          .child(Icon(n.icon, { size: 13, color: active ? k.foreground : k.mutedFg }))
+          .child(div().text_size(TEXT.sm).font_medium().text_color(active ? k.foreground : k.mutedFg).child(n.label))
+          .when(Boolean(number), (e) => e.child(div().text_size(TEXT.xs).text_color(tone).child(String(number))));
+      }
+      return v_flex()
+        .id(`settings-nav-${n.id}`)
+        .gap(0)
+        .px(9)
+        .py(7)
+        .rounded(RADIUS.md)
+        .cursor_pointer()
+        .bg(active ? k.selected : k.background)
+        .border_1()
+        .border_color(active ? k.border : k.background)
+        .hover((s) => s.bg(k.muted))
+        .on_click((_e, cx) => (this.show(n.id), cx.notify()))
+        .child(
+          h_flex()
+            .gap(8)
+            .items_center()
+            .child(Icon(n.icon, { size: 14, color: active ? k.foreground : k.mutedFg }))
+            .child(div().flex_1().min_w(0).truncate().text_size(TEXT.sm).font_medium().text_color(active ? k.foreground : k.mutedFg).child(n.label))
+            .when(Boolean(number), (e) => e.child(div().text_size(TEXT.xs).font_medium().text_color(tone).child(String(number)))),
+        )
+        .child(div().pl(22).truncate().text_size(10).text_color(k.dim).child(n.hint));
+    };
+    return narrow
+      ? h_flex().id("settings-nav").w_full().flex_none().flex_wrap().gap(4).p(8).border_b_1().border_color(k.border).children(NAV.map(item))
+      : v_flex().id("settings-nav").w(210).flex_none().h_full().gap(2).p(10).border_r_1().border_color(k.border).children(NAV.map(item));
+  }
+
+  /** The Agents tab: who new work starts, how agents are named, and the roster this machine runs. */
+  agentsElTab(k) {
+    const rows = [];
+    const down = this.hubRow(k, "agents-hub");
+    if (down) rows.push(div().mb(12).child(down));
+    for (const group of GROUPS.agents) this.pushOptionCard(rows, k, group);
+    const installed = (this.report?.agents ?? []).filter((a) => a.installed).length;
+    rows.push(
+      this.settingsCard(k, {
+        id: "agents-roster",
+        icon: "users",
+        title: "On this machine",
+        description: this.report ? `${installed} installed${this.report.agents?.length > installed ? `, ${this.report.agents.length - installed} to add` : ""}. What each can do, and whether cockpit's tools reach it.` : "Reading what this machine runs…",
+        action: Button("agents-add", { label: "Add machine", icon: "plus", variant: "outline", size: "sm", onClick: () => run("mod.open", { name: "machine-add" }) }),
+        children: [div().px(14).pb(10).child(this.report ? this.agentsEl(k) : v_flex().gap(8).children([0, 1, 2].map((i) => Skeleton({ h: 14, w: 200 + i * 50 }))))],
+      }),
+    );
+    return rows;
+  }
+
+  /** The Work tab: threads themselves, then the prompts, questions and briefs Flow's screens act on. */
+  workEl(k) {
+    const threadState = shared(THREADS) ?? {};
+    const threads = Object.keys(threadState.threads ?? {}).length;
+    const resolved = (threadState.resolved ?? []).length;
+    const rows = [
+      this.settingsCard(k, {
+        id: "work-threads",
+        icon: "git-branch",
+        title: "Threads",
+        description: "A fix, a feature or a bug, on the machine it works on. The sidebar lists them in place of spaces, and each keeps its own tabs and panes.",
+        action: Button("work-new-thread", { label: "New thread", icon: "plus", size: "sm", onClick: () => run("flow.thread") }),
+        children: [
+          h_flex()
+            .px(14)
+            .pb(14)
+            .gap(14)
+            .items_center()
+            .flex_wrap()
+            .child(div().text_size(TEXT.sm).text_color(k.mutedFg).child(`${threads} open · ${resolved} resolved`))
+            .child(div().flex_1())
+            .child(Button("work-add-machine", { label: "Add machine", icon: "server", variant: "outline", size: "sm", onClick: () => run("mod.open", { name: "machine-add" }) })),
+        ],
+      }),
+    ];
+    const down = this.hubRow(k, "work-hub");
+    if (down) rows.push(div().mb(12).child(down));
+    for (const group of GROUPS.work) this.pushOptionCard(rows, k, group);
+    if (!this.options && !down) rows.push(v_flex().gap(10).p(24).children([0, 1, 2].map((i) => Skeleton({ h: 16, w: 260 + i * 70 }))));
+    rows.push(div().pb(4).text_size(TEXT.xs).text_color(k.dim).child("These are cockpit's options, saved in ~/.config/cockpit/config.json as you change them."));
+    return rows;
+  }
+
+  /** The Data tab: GitLab, the sources Flow reads, how often, and the connectors only config.json holds. */
+  dataEl(k) {
+    const rows = [this.gitlabRow(k)];
+    const down = this.hubRow(k, "data-hub");
+    if (down) rows.push(div().mb(12).child(down));
+    for (const group of GROUPS.data) this.pushOptionCard(rows, k, group);
+    if (!this.options && !down) rows.push(v_flex().gap(10).p(24).children([0, 1, 2].map((i) => Skeleton({ h: 16, w: 250 + i * 80 }))));
+    rows.push(...this.fileRows(k));
+    return rows;
+  }
+
+  /** The Advanced tab: cockpit's other options, the ones Flow's own screens do not act on, in one honest list. */
+  advancedEl(k) {
+    const left = (this.options ?? []).filter((o) => !PLACED.has(o.key)).length;
+    const rows = [
+      this.settingsCard(k, {
+        id: "advanced-cockpit",
+        icon: "sliders-horizontal",
+        title: "Cockpit's other options",
+        description: `Start work, cockpit's chat and anything a later cockpit brings. Flow's own screens do not act on most of these, but cockpit still does.${left ? ` ${left} left.` : ""}`,
+        action: Button("advanced-open-file", { label: `Open config.json`, icon: "external", variant: "outline", size: "sm", tooltip: "~/.config/cockpit/config.json", onClick: (_e, cx) => this.openFile(cx) }),
+      }),
+    ];
+    rows.push(...this.optionRows(k, { gitlab: false, file: false, omit: PLACED, description: "Saved in ~/.config/cockpit/config.json as you change them; cockpit options lists them in a terminal." }));
+    return rows;
+  }
+  /** The agents this machine runs: their logo, what they can do, their tools and their last usage. */
   agentsEl(k) {
     const agents = this.report?.agents ?? [];
     const row = (a) =>
@@ -1292,29 +1841,39 @@ export default class Settings {
         ? [s.fail ? `${s.fail} failing` : null, s.warn ? `${s.warn} to look at` : null, `${s.pass ?? 0} passed`, at ? `checked ${at}` : null].filter(Boolean).join(" · ")
         : (this.error ?? "Checking every part of cockpit…");
     const rows = [
-      h_flex()
+      v_flex()
         .id("health-top")
-        .gap(10)
+        .gap(8)
         .pb(12)
-        .items_center()
-        .child(div().flex_1().min_w(0).truncate().text_size(TEXT.sm).text_color(this.error ? k.destructive : k.mutedFg).child(summary))
-        .when(this.running, (e) => e.child(Spinner({ size: 14, color: k.mutedFg })))
         .child(
-          Pills("health-filter", [["needs", `Needs a look ${problems.length}`], ["all", `All checks ${checks.length}`]], this.all ? "all" : "needs", (value, cx) => ((this.all = value === "all"), (this.at = 0), cx.notify())),
+          h_flex()
+            .gap(10)
+            .items_center()
+            .child(div().flex_1().min_w(0).truncate().text_size(TEXT.sm).text_color(this.error ? k.destructive : k.mutedFg).child(summary))
+            .when(this.running, (e) => e.child(Spinner({ size: 14, color: k.mutedFg })))
+            .child(Button("diag-again", { label: "Check again", icon: "refresh-cw", variant: "outline", size: "sm", kbd: "R", tooltip: "Run every check again", onClick: (_e, cx) => this.check(cx) })),
         )
-        .when(fixable.length > 1, (e) =>
-          e.child(
-            Button("diag-fix-all", {
-              label: `Fix all (${fixable.length})`,
-              icon: "play",
-              size: "sm",
-              kbd: "F",
-              tooltip: `Run the ${fixable.length} fixes cockpit can run, after one confirm`,
-              onClick: (_e, cx) => this.askAll(cx),
-            }),
-          ),
-        )
-        .child(Button("diag-again", { label: "Check again", icon: "refresh-cw", variant: "outline", size: "sm", kbd: "R", tooltip: "Run every check again", onClick: (_e, cx) => this.check(cx) })),
+        .child(
+          h_flex()
+            .gap(8)
+            .flex_wrap()
+            .items_center()
+            .child(
+              Pills("health-filter", [["needs", `Needs a look ${problems.length}`], ["all", `All checks ${checks.length}`]], this.all ? "all" : "needs", (value, cx) => ((this.all = value === "all"), (this.at = 0), cx.notify())),
+            )
+            .when(fixable.length > 1, (e) =>
+              e.child(
+                Button("diag-fix-all", {
+                  label: `Fix all (${fixable.length})`,
+                  icon: "play",
+                  size: "sm",
+                  kbd: "F",
+                  tooltip: `Run the ${fixable.length} fixes cockpit can run, after one confirm`,
+                  onClick: (_e, cx) => this.askAll(cx),
+                }),
+              ),
+            ),
+        ),
     ];
     const down = this.hubRow(k, "health-hub");
     if (down) rows.push(div().pb(12).child(down));
@@ -1340,13 +1899,30 @@ export default class Settings {
 
   render(cx) {
     const k = tokens();
-    const r = this.report;
-    const problems = (r?.checks ?? []).filter((c) => c.status !== "pass");
     const line = versionLine(this.v, { checking: this.checking });
-    const narrow = (this.width ?? 860) < 640;
+    const narrow = (this.width ?? 860) < 720;
     // The body's rows are the scroll area's own children, so j/k can bring the selected check or option into view.
     this.rowAt = {};
-    const rows = this.tab === "options" ? this.optionRows(k) : this.tab === "layout" ? [this.layoutEl(k)] : this.tab === "agents" ? (!r && !this.error ? [v_flex().gap(10).p(24).children([0, 1, 2].map((i) => Skeleton({ h: 16, w: 240 + i * 90 })))] : [this.agentsEl(k)]) : this.healthRows(k, cx);
+    const rows =
+      this.tab === "flow"
+        ? this.flowEl(k)
+        : this.tab === "look"
+          ? [this.layoutEl(k)]
+          : this.tab === "agents"
+            ? this.agentsElTab(k)
+            : this.tab === "work"
+              ? this.workEl(k)
+              : this.tab === "data"
+                ? this.dataEl(k)
+                : this.tab === "advanced"
+                  ? this.advancedEl(k)
+                  : this.healthRows(k, cx);
+    const body = ((area) => (this.scroll ? area.track_scroll(this.scroll) : area))(
+      v_flex().id("settings-body").flex_1().min_h(0).min_w(0).px(narrow ? 14 : 22).pt(narrow ? 12 : 16).pb(20).overflow_y_scrollbar(),
+    ).children(rows);
+    const shell = narrow
+      ? v_flex().flex_1().min_h(0).child(this.nav(k, true)).child(body)
+      : h_flex().flex_1().min_h(0).child(this.nav(k, false)).child(body);
     let root = v_flex()
       .id("settings")
       .track_focus(this.handle)
@@ -1370,7 +1946,7 @@ export default class Settings {
       })
       .child(
         h_flex()
-          .h(60)
+          .h(64)
           .px(20)
           .gap(10)
           .flex_none()
@@ -1404,27 +1980,7 @@ export default class Settings {
           )
           .child(Button("settings-close", { icon: "x", variant: "ghost", size: "icon", tooltip: "Close  esc", onClick: () => this.dismiss() })),
       )
-      .child(
-        h_flex()
-          .px(20)
-          .py(10)
-          .flex_none()
-          .child(
-            Tabs("settings-tabs", {
-              items: [
-                { value: "options", label: "Options", count: (this.options ?? []).filter((o) => o.seen === false).length || null },
-                { value: "health", label: "Health", count: r ? problems.length + (this.hubState.startsWith("error") ? 1 : 0) : null },
-                { value: "agents", label: "Agents", count: r ? (r.agents ?? []).filter((a) => a.installed).length : null },
-                { value: "layout", label: "Layout" },
-              ],
-              value: this.tab,
-              onChange: (v, cx) => (this.show(v), cx.notify()),
-            }),
-          ),
-      )
-      .child(
-        ((area) => (this.scroll ? area.track_scroll(this.scroll) : area))(v_flex().id("settings-body").flex_1().min_h(0).px(20).pb(20).overflow_y_scrollbar()).children(rows),
-      );
+      .child(shell);
     const toasts = this.toasts.render();
     if (toasts) root = root.child(toasts);
     if (this.asking) {

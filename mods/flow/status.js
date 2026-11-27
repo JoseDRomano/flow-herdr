@@ -11,7 +11,7 @@ import { sharing } from "./feed.js";
 import { fleet, counts } from "./fleet.js";
 import { show, agentInView } from "./screens.js";
 import { runCommand, togglePanel, hint, lend, settle } from "./commands.js";
-import { tokens, TEXT, RADIUS, Icon, Spinner, Mono, openMenu } from "./ui.js";
+import { tokens, TEXT, RADIUS, Icon, Spinner, Mono, openMenu, SkyGlow } from "./ui.js";
 import { followSky } from "./sky.js";
 
 // The agents, Home and queue views, followed once per window whichever copies ask (feed.js).
@@ -172,9 +172,12 @@ export default class Status {
         }),
       );
 
+    const glow = SkyGlow("sky-glow-status", k, { from: 0.06, to: 0.3, period: 2400 });
     return h_flex()
       .id("flow-status")
       .size_full()
+      .relative()
+      .when(Boolean(glow), (e) => e.child(glow))
       .on_size_change((size, cx) => {
         if (Math.abs((this.width ?? 0) - size.width) < 1) return;
         this.width = size.width;

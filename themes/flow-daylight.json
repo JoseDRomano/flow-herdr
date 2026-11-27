@@ -15,6 +15,8 @@
     "sky_rise": "#00000000",
     "sky_floor": "#00000000",
     "sky_ink": "#a6abd8",
+    "sky_card_top": "#ffffff11",
+    "sky_card_bottom": "#ffffff11",
     "glass_line": "#ffffff1a",
     "glass_focus": "#b9c4ff4d",
     "pill": "#ffffff0f",

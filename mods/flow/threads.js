@@ -192,6 +192,35 @@ export function split(stored, spaces) {
   return out;
 }
 
+/** How far the pointer moves, px, before a press on a thread becomes a drag rather than a click. */
+export const DRAG_PX = 4;
+
+/**
+ * Where a dragged thread would land among cards of these heights, each followed by `gap` px, the pointer `y` px below the
+ * list's top: the slot before the first card whose middle is below the pointer, or after the last (0 to heights.length).
+ */
+export function dropSlot(heights, y, gap = 0) {
+  let top = 0;
+  for (let j = 0; j < heights.length; j++) {
+    if (y < top + heights[j] / 2) return j;
+    top += heights[j] + gap;
+  }
+  return heights.length;
+}
+
+/**
+ * The `space.move` that puts the thread at `from` in the slot `slot` of the thread list (`list`, each `{ id, index,
+ * machine }`, `index` its space's place in Herdr's list from 0): `{ id, index }`, `index` from 1. Null when it would stay
+ * where it is, or when the slot is beside a thread on another machine, since a space only moves among its machine's.
+ */
+export function moveTo(list, from, slot) {
+  const src = list[from];
+  if (!src || slot < 0 || slot > list.length || slot === from || slot === from + 1) return null;
+  const near = slot < from ? list[slot] : list[slot - 1];
+  if ((near.machine ?? null) !== (src.machine ?? null)) return null;
+  return { id: src.id, index: near.index + 1 };
+}
+
 /**
  * The first pane of each bridge thread that isn't known as its bridge yet: `[{ id, pane, where }]`, `panes` as Herdr
  * lists them. That pane is the one `space.new` opened running the bridge, the first of its space's first tab.

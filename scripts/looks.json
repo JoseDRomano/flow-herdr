@@ -8,7 +8,7 @@
       "brand": { "content": { "mod": "flow", "props": { "app": "brand" } } },
       "tabs": { "content": { "mod": "flow", "props": { "app": "tabs" } } }
     },
-    "cards": { "radius": 14, "shadow": null, "border": { "width": 1, "color": "glass_line" } },
-    "panes": { "radius": 14, "veil": null, "border": { "width": 1, "color": "glass_line" }, "focus": { "width": 1, "color": "glass_focus" } }
+    "cards": { "radius": 14, "shadow": null, "border": { "width": 1, "color": "glass_line" }, "background": { "gradient": ["sky_card_top", "sky_card_bottom"], "angle": 180 } },
+    "panes": { "radius": 14, "veil": null, "background": { "gradient": ["sky_card_top", "sky_card_bottom"], "angle": 180 }, "border": { "width": 1, "color": "glass_line" }, "focus": { "width": 1, "color": "glass_focus" } }
   }
 }
