@@ -1,5 +1,5 @@
 // Start work: a prompt, a ticket or a PR becomes a worktree, a space and an agent, as a dialog over the window (Home's
-// New agent, the inbox's Start, the palette), planned again by the hub as you type (`fetch start_work`) with the steps,
+// New agent, the palette), planned again by the hub as you type (`fetch start_work`) with the steps,
 // blockers and fixes shown before Start. Then each step shows as it runs (view `start`), with Retry when one fails and a
 // Cancel that asks before removing what the start made; opened on a run, it shows that run.
 
@@ -469,11 +469,11 @@ export default class Start {
     const removable = Boolean(this.run?.cancel);
     if (at === "failed") {
       if (removable) buttons.push(Button("start-remove", { label: "Cancel and remove", variant: "outline", ...this.hint("c"), onClick: (_e, cx) => this.cancel(cx) }));
-      buttons.push(Button("start-keep", { label: "Keep it", variant: "outline", ...this.hint("esc", "Leave it as it is: the inbox shows it"), onClick: () => this.dismiss() }));
+      buttons.push(Button("start-keep", { label: "Keep it", variant: "outline", ...this.hint("esc", "Leave it as it is: Home shows it"), onClick: () => this.dismiss() }));
       buttons.push(Button("start-retry", { label: "Retry", icon: "rotate-ccw", ...this.hint("r"), onClick: (_e, cx) => this.retry(cx) }));
     } else if (at === "running") {
       if (removable) buttons.push(Button("start-remove", { label: "Cancel and remove", variant: "outline", ...this.hint("c"), onClick: (_e, cx) => this.cancel(cx) }));
-      buttons.push(Button("start-hide", { label: "Hide", ...this.hint("esc", "The start goes on: the inbox shows it until it ends"), onClick: () => this.dismiss() }));
+      buttons.push(Button("start-hide", { label: "Hide", ...this.hint("esc", "The start goes on: Home shows it until it ends"), onClick: () => this.dismiss() }));
     } else if (at === "done" || at === "cancelled") {
       buttons.push(Button("start-close", { label: "Close", ...this.hint("esc"), onClick: () => this.dismiss() }));
     } else {

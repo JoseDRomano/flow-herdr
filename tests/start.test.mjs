@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { createContext, SourceTextModule, SyntheticModule } from "node:vm";
 import { test } from "node:test";
 
-import { emptyState, requestOf, applyFix, edited, sourceOf, phase, resolved, stepMark, shortPath, choicesOf, agentOf, takesModel } from "../mods/flow/startform.js";
+import { emptyState, requestOf, applyFix, edited, phase, resolved, stepMark, shortPath, choicesOf, agentOf, takesModel } from "../mods/flow/startform.js";
 
 test("the form becomes the request the hub plans", () => {
   const s = edited(edited(emptyState("ENG-412  ", "g1"), "mode", "plan"), "model", " opus ");
@@ -25,13 +25,6 @@ test("a fix fills its field or sets its flag, and a new source drops the old fix
   assert.equal(requestOf(applyFix(s, { worktree: "new" })).worktree, "new");
   assert.equal(requestOf(edited(s, "source", "ENG-415")).trust, undefined, "another source asks again");
   assert.equal(requestOf(edited(applyFix(s, { dirty: true }), "here", false)).dirty, undefined, "the worktree changed: the checkout's state no longer counts");
-});
-
-test("an inbox row starts work on its ticket's key or its PR's URL", () => {
-  assert.equal(sourceOf({ kind: "ticket", key: "ENG-412" }), "ENG-412");
-  assert.equal(sourceOf({ kind: "pr", key: "x", item: { url: "https://github.com/acme/api/pull/2198" } }), "https://github.com/acme/api/pull/2198");
-  assert.equal(sourceOf({ kind: "alert", item: { url: "https://ci.example.com/run/1" } }), "");
-  assert.equal(sourceOf(null), "");
 });
 
 test("where the form stands, from the plan and the run", () => {

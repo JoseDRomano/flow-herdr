@@ -168,14 +168,14 @@ test("a hub that does not answer allows nothing and says so", async () => {
 
 test("a key from outside reaches the view in front and no other", async () => {
   const { mod } = await fixture();
-  const inbox = { app: "inbox", keys: true, at: 1 }, home = { app: "home", keys: true, at: 2 }, recap = { app: "recap", keys: true, overlay: true, at: 3 };
+  const todo = { app: "todo", keys: true, at: 1 }, home = { app: "home", keys: true, at: 2 }, recap = { app: "recap", keys: true, overlay: true, at: 3 };
   const panel = { app: "runbook", keys: true, scoped: true, at: 4 }, show = { app: "show", keys: true, at: 5 }, sidebar = { app: "sidebar", keys: false, at: 0 };
-  const all = [sidebar, inbox, home, panel, show];
+  const all = [sidebar, todo, home, panel, show];
   const apps = (list) => list.map((c) => c.app).join(" ");
-  assert.equal(apps(mod.front(all, "inbox")), "inbox", "the inbox in front: Home, hidden, hears nothing");
-  assert.equal(apps(mod.front([...all, recap], "inbox")), "recap", "a popup over it takes the key alone");
+  assert.equal(apps(mod.front(all, "todo")), "todo", "the to-do in front: Home, hidden, hears nothing");
+  assert.equal(apps(mod.front([...all, recap], "todo")), "recap", "a popup over it takes the key alone");
   assert.equal(apps(mod.front(all, "home")), "home");
-  assert.equal(apps(mod.front(all, "todo")), "", "a screen with no copy here");
+  assert.equal(apps(mod.front(all, "mail")), "", "a screen with no copy here");
   assert.equal(apps(mod.front(all, "work")), "runbook show", "an agent's terminal in front: only the panes and the panel beside it");
 });
 
@@ -191,7 +191,7 @@ test("a copy a layout switch dropped without a word stops counting once it stops
 });
 
 test("Home's keys answer nothing while another screen is in front", async () => {
-  const { mod } = await fixture({ shown: "inbox" });
+  const { mod } = await fixture({ shown: "todo" });
   const home = Object.create(mod.Home.prototype);
   Object.assign(home, { confirm: null, replying: null });
   assert.equal(home.key({ keystroke: "1" }, context().cx), false);

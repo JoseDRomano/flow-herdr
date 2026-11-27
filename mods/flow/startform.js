@@ -36,14 +36,6 @@ export function edited(s, field, value) {
   return next;
 }
 
-/** What an inbox row starts work on: a ticket's key, a PR's URL. */
-export function sourceOf(row) {
-  if (!row) return "";
-  if (row.kind === "ticket") return row.key ?? "";
-  const url = row.item?.url ?? "";
-  return url.includes("/pull/") ? url : "";
-}
-
 /** Where the form stands: checking | ready | focus | blocked | running | failed | done | cancelled. */
 export function phase(plan, run, { checking = false, started = false } = {}) {
   if (run?.state && run.state !== "running") return run.state;

@@ -5,10 +5,11 @@
 import { notify, window as win } from "herdr";
 import * as hub from "./hub.js";
 import { openUpdate } from "./update.js";
+import { MR_URL } from "./gitlab.js";
 
 const LEVEL = { "🔴": "error", "❌": "error", "⚠️": "warning", "✅": "success", "🟢": "success", "🚀": "success" };
 
-const WHERE = { inbox: "the inbox", runbook: "the runbook", meeting: "Meetings", monitor: "the monitor", routine: "Routines", space: "Flow" };
+const WHERE = { runbook: "the runbook", meeting: "Meetings", monitor: "the monitor", routine: "Routines", space: "Flow" };
 
 /**
  * A notification from the hub, {title, body, action, row, buttons, from}: shown as fits the window. One a client sent
@@ -36,12 +37,15 @@ export function deliver(n, install, cx) {
   });
 }
 
-/** "https://github.com/acme/api/pull/4" out of that PR's URL or one of its pages, else the reference as given. */
-const prOf = (ref) => /^(https?:\/\/[^\s]*?\/pull\/\d+)/.exec(ref)?.[1] ?? ref;
+/**
+ * "https://github.com/acme/api/pull/4" out of that PR's URL or one of its pages, the same for a GitLab merge request's,
+ * else the reference as given.
+ */
+const prOf = (ref) => (/^(https?:\/\/[^\s]*?\/pull\/\d+)/.exec(ref) ?? MR_URL.exec(ref))?.[1] ?? ref;
 
 /**
- * The row a notification's button is about, where the person acts: `act:<review|ci|rerun|merge>:<PR>` is the PR's row,
- * `act:plan:<ticket>` the ticket's and `act:routine:<slug>` the routine; any other target is itself.
+ * Where a notification's button leads: `act:<review|ci|rerun|merge>:<PR>` to the PR's page, `act:plan:<ticket>` to the
+ * ticket's row and `act:routine:<slug>` to the routine; any other target is itself.
  */
 export function rowOf(target) {
   const found = /^(?:herdr-app:)?act:([a-z]+):(.+)$/.exec(target);
@@ -49,7 +53,7 @@ export function rowOf(target) {
   const [, kind, ref] = found;
   if (kind === "routine") return `routine:${ref}`;
   if (kind === "plan") return `inbox:${ref.toUpperCase()}`;
-  return `inbox:${prOf(ref)}`;
+  return prOf(ref);
 }
 
 /**
@@ -57,8 +61,9 @@ export function rowOf(target) {
  * `cockpit focus` (rows, spaces, tabs), a button's action as the row it is about.
  */
 export function follow(target, cx) {
-  if (/^https?:\/\//.test(target)) cx.spawn(async () => hub.openUrl(target));
+  const row = rowOf(target);
+  if (/^https?:\/\//.test(row)) cx.spawn(async () => hub.openUrl(row));
   else if (target === "update") openUpdate();
   // A remote desk refuses what needs its own terminals: the click says so instead of going nowhere.
-  else cx.spawn(async () => hub.cockpit(["focus", rowOf(target)]).catch((e) => notify({ title: "Could not follow it", body: String(e?.message ?? e), level: "warning", timeout: 5000 })));
+  else cx.spawn(async () => hub.cockpit(["focus", row]).catch((e) => notify({ title: "Could not follow it", body: String(e?.message ?? e), level: "warning", timeout: 5000 })));
 }

@@ -22,7 +22,7 @@ light). Type is Geist for the UI and Geist Mono 14 for terminals.
   - **Bell**, 52px: notifications, with a dot when some are unread.
 - **Body**, a row:
   - **Sidebar**, 256px (folds to a 44px rail), on `chrome`. The Flow sidebar (`{app: "sidebar"}`) fills it: "Search
-    or run…", the 5h and 7d quota bars, the app icons (Home, Inbox, To-do, Runbook, Meetings, …), the **Needs you**
+    or run…", the 5h and 7d quota bars, the app icons (Home, To-do, Runbook, Meetings, …), the **Needs you**
     cards, then the spaces with what runs in each, machine by machine, in folders. Herdr's `workspace-chrome` footer
     (69px: Settings, Add machine) sits at its foot.
   - **Center**, a stack with 10px padding on the `canvas` (`#0c1012` dark). Each view is a card with a 14px radius, the
@@ -33,7 +33,7 @@ light). Type is Geist for the UI and Geist Mono 14 for terminals.
       focused pane, other panes veiled at 25%, a 30px Flow header on each), or the focused agent alone under its 34px
       head. The hidden **side panel**, 440px (280–900), sits on the right, a bordered card holding Show, Review,
       Runbook, Files, Changes and the side browser, with a 44px activity bar of their icons.
-    - **Inbox, Runbook, To-do, Meetings, Monitor, Routines, Mail**: one full card each.
+    - **Runbook, To-do, Meetings, Monitor, Routines, Mail**: one full card each.
 - **Status bar**, 34px across the window on `chrome`: the agents by stage (each a click), the focused agent's branch
   and links, queued prompts, agents to resume, and the hub's state while it doesn't answer.
 - **Queue drawer**, floating on the left edge near the bottom, a 44px peek: prompts queued for an agent, shown only
@@ -44,8 +44,8 @@ light). Type is Geist for the UI and Geist Mono 14 for terminals.
 The views behave as cockpit's do (agent status marks, stages, answering in place, folders, the palette `⌘⇧P`, the keys
 in `keys.json` under `layout:flow`). Flow differs in four ways:
 
-- A notification's click on an app's row (inbox, to-do, runbook, meetings, monitor, routines, mail) or on an app's space
-  shows it in Flow. It doesn't run `cockpit focus`, which would switch the window to cockpit's layout.
+- A notification's click on an app's row (to-do, runbook, meetings, monitor, routines, mail) or on an app's space
+  shows it in Flow; one on a PR opens its page, as Flow has no inbox. It doesn't run `cockpit focus`, which would switch the window to cockpit's layout.
 - After a cockpit update, Flow shows what changed and the new options, and offers no layout to try.
 - Flow settings' Layout tab shows the Flow layout alone, and sessions cockpit drives without a terminal are listed but
   can't be opened: Flow has no chat to read them in.
@@ -64,7 +64,7 @@ in `keys.json` under `layout:flow`). Flow differs in four ways:
   `chrome`). `center` holds `home` (row, gap 10: `home-board` and the hidden `home-agent` 600px card), `work` (row,
   gap 10: the `view` stack of `main` (the active tab, pane cards) and `agent`, then the hidden `panel` row 440px with
   its `panel-body` stack of `show`, `review`, `runbook-panel`, `files`, `changes`, `web` and the `activity` bar 44),
-  and the `inbox`, `runbook`, `todo`, `meetings`, `monitor`, `routines`, `mail` cards. `floating`: `queue`, edge left,
+  and the `runbook`, `todo`, `meetings`, `monitor`, `routines`, `mail` cards. `floating`: `queue`, edge left,
   align end, peek 44.
 - **One mod** `mods/flow/` (`mod.json`: `place: none`, focusable, the URL link handler). Every block is the same mod
   with `props.app`, and so is every overlay it opens. `main.js` maps the name to a view class, `hub.js` talks to

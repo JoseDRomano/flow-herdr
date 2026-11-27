@@ -7,7 +7,7 @@
 #   sh scripts/sandbox.sh start            fake HOME with the demo world (FRESH=1 rebuilds it), a separate Herdr window,
 #                                      Flow linked into it and shown
 #   sh scripts/sandbox.sh do <cmd> [json]  a Herdr command in that window (layout.select, app.theme, ...)
-#   sh scripts/sandbox.sh show <app>       that app's screen in front (home, work, inbox, todo, ...)
+#   sh scripts/sandbox.sh show <app>       that app's screen in front (home, work, todo, runbook, ...)
 #   sh scripts/sandbox.sh layout <name>    the window on that layout (flow)
 #   sh scripts/sandbox.sh kit [tab]        the design kit's gallery as a window
 #   sh scripts/sandbox.sh light|dark       the window's appearance

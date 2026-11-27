@@ -75,7 +75,6 @@ async function fixture({ layout = "flow", shown = "home", sandbox = false, focus
     'export { default as Runbook } from "./runbook.js";',
     'export { default as Monitor } from "./monitor.js";',
     'export { default as Routines } from "./routines.js";',
-    'export { default as Inbox } from "./inbox.js";',
     'export { default as Mail } from "./mail.js";',
     'export { default as Meetings } from "./meetings.js";',
     'export { default as Todo } from "./todo.js";',
@@ -126,18 +125,19 @@ function home(mod, rows) {
 // ---------------------------------------------------------------------------------------------------------------------
 // The fifth review's reproductions, fixed
 
-test("a toast's target, a button's included, only ever brings its row into view", async () => {
+test("a toast's target, a button's included, only ever navigates: a PR's page, else its row", async () => {
   for (const layout of ["flow"]) {
-    const { mod, clis, acts, overlays } = await fixture({ layout });
+    const { mod, clis, acts, overlays, urls } = await fixture({ layout });
     const { cx, settled } = context();
     const pr = "https://github.com/acme/api/pull/1";
-    for (const t of [`act:merge:${pr}`, `act:rerun:${pr}/checks`, `act:review:${pr}`, `act:ci:${pr}`, "act:plan:eng-1", "act:routine:sweep", `herdr-app:act:merge:${pr}`, "inbox:ENG-2", "resume"])
+    const mr = "https://gitlab.acme.example/acme/api/-/merge_requests/7";
+    for (const t of [`act:merge:${pr}`, `act:rerun:${pr}/checks`, `act:review:${pr}`, `act:ci:${pr}`, "act:plan:eng-1", "act:routine:sweep", `herdr-app:act:merge:${pr}`, "inbox:ENG-2", "resume", `act:review:${mr}`, `act:ci:${mr}/pipelines`])
       assert.equal(mod.runCommand(`target:${t}`, cx, layout), true);
     assert.equal(mod.runCommand("target:update", cx, layout), true);
     await settled();
+    assert.deepEqual(plain(urls), [pr, pr, pr, pr, pr, mr, mr], "a PR's or a GitLab merge request's button opens its page: Flow has no inbox");
     assert.deepEqual(plain(clis), [
-      ["focus", `inbox:${pr}`], ["focus", `inbox:${pr}`], ["focus", `inbox:${pr}`], ["focus", `inbox:${pr}`],
-      ["focus", "inbox:ENG-1"], ["focus", "routine:sweep"], ["focus", `inbox:${pr}`], ["focus", "inbox:ENG-2"], ["focus", "resume"],
+      ["focus", "inbox:ENG-1"], ["focus", "routine:sweep"], ["focus", "inbox:ENG-2"], ["focus", "resume"],
     ], "rows, never `cockpit focus act:…`; resume stays, as `cockpit focus resume` does");
     assert.equal(acts.length, 0);
     assert.equal(overlays.at(-1)?.props?.app, "update", "the update's click opens its dialog, where the person installs it");
@@ -300,7 +300,7 @@ test("a runbook's step and book actions run only from its menu", async () => {
   assert.equal(requests.at(-1).armed, "run-eng-1-2");
 });
 
-test("monitor, routines, inbox, mail, meetings and to-do do nothing on a bare window command", async () => {
+test("monitor, routines, mail, meetings and to-do do nothing on a bare window command", async () => {
   const { mod, requests, acts } = await fixture();
   const { cx, settled } = context();
   const mon = Object.create(mod.Monitor.prototype);
@@ -313,10 +313,6 @@ test("monitor, routines, inbox, mail, meetings and to-do do nothing on a bare wi
   rt.command("routines:act:delete:sweep", cx);
   rt.command("routines:act:file:sweep", cx);
   rt.command("routines:read:-:sweep/run/1", cx);
-  const ib = Object.create(mod.Inbox.prototype);
-  const row = { key: "https://github.com/acme/api/pull/3", path: "/r3", name: "acme/api#3", kind: "review", acts: [{ label: "review", key: "r", main: true, call: { fn: "review", args: [{ url: "https://github.com/acme/api/pull/3" }] } }, { label: "remove", confirm: "rm", call: { fn: "close_space", args: [] } }] };
-  Object.assign(ib, { toasts: toasts(), pending: new Map(), details: new Map(), picked: new Set(), dialog: null, current: () => row });
-  for (const c of ["inbox:act:0", "inbox:act:1", "inbox:state:ENG-7:Done", "inbox:pick", "inbox:alike"]) ib.command(c, cx);
   const ml = Object.create(mod.Mail.prototype);
   Object.assign(ml, { toasts: toasts(), model: { messages: [{ id: "m1", fromName: "Maya", raw: { id: "m1" } }] }, hubAct: async (_cx, action, args) => requests.push({ op: "act", app: "mail", action, args }) });
   for (const c of ["mail:reply:m1", "mail:archive:m1", "mail:read:m1"]) ml.command(c, cx);
@@ -329,7 +325,7 @@ test("monitor, routines, inbox, mail, meetings and to-do do nothing on a bare wi
   await settled();
   assert.deepEqual(plain(requests), []);
   assert.deepEqual(plain(acts), []);
-  assert.equal(mon.confirm ?? rt.confirm ?? ib.dialog, null, "no confirm armed for a stray ⏎");
+  assert.equal(mon.confirm ?? rt.confirm, null, "no confirm armed for a stray ⏎");
   // From their menus, with the key, they act.
   mon.command("monitor:act:fix:iss-1", cx, mod.unkey(mod.keyed("monitor:act:fix:iss-1")).key);
   ml.command("mail:reply:m1", cx, mod.unkey(mod.keyed("mail:reply:m1")).key);
@@ -566,7 +562,7 @@ const SHAPES = {
   // The runner's commands (commands.js), both layouts.
   palette: ["palette", "nav"], keys: ["keys", "nav"], recap: ["recap", "nav"], "recap:": ["recap:needs_you", "nav"],
   "next-waiting": ["next-waiting", "nav"], "next:blocked": ["next:blocked", "nav"], "next:done": ["next:done", "nav"],
-  panel: ["panel", "nav"], "panel:": ["panel:review", "nav"], "doc:": ["doc:deploy", "nav"], "go:": ["go:inbox", "nav"], pr: ["pr", "nav"], ticket: ["ticket", "nav"],
+  panel: ["panel", "nav"], "panel:": ["panel:review", "nav"], "doc:": ["doc:deploy", "nav"], "go:": ["go:runbook", "nav"], pr: ["pr", "nav"], ticket: ["ticket", "nav"],
   resume: ["resume", "allowed"], "link:": ["link:https://acme.example/x", "nav"], "target:": [`target:act:merge:${PR}`, "nav"],
   update: ["update", "nav"], settings: ["settings", "nav"], "settings:": ["settings:health", "nav"], diagnostics: ["diagnostics", "nav"], usage: ["usage", "nav"], start: ["start", "nav"],
   kit: ["kit", "nav"], "kit:": ["kit:charts", "nav"], "code:open:": ["code:open:/Users/me/code/api/README.md", "nav"],
@@ -586,8 +582,6 @@ const SHAPES = {
   "home:dismiss:*": ["home:dismiss:a:t3", "act"], "home:restore:*": ["home:restore:a:t3", "act"],
   "agents|dismiss|*|": ["agents|dismiss|app:t3|", "act"], "agents|restore|*|": ["agents|restore|app:t3|", "act"],
   "home:seen:*": ["home:seen:a:t3", "act"], "home:pin:*": ["home:pin:a:t3", "act"], "home:fork:*": ["home:fork:a:t3", "act"], "home:merge:*": ["home:merge:a:t3", "act"], "home:archive:*": ["home:archive:a:t3", "act"],
-  "inbox:act:*": ["inbox:act:0", "act"], "inbox:pick": ["inbox:pick", "act"], "inbox:alike": ["inbox:alike", "act"], "inbox:fold": ["inbox:fold", "nav"],
-  "inbox:state:*:*": ["inbox:state:ENG-7:Done", "act"],
   "mail:*:*": ["mail:reply:m1", "act"], "meetings:*:*": ["meetings:prepare:e1", "act"], "meetings:golist:*": ["meetings:golist:e1", "nav"],
   "monitor:act:*:*": ["monitor:act:fix:iss-1", "act"], "monitor:window:*": ["monitor:window:iss-1", "nav"],
   "review:to:*|*": ["review:to:app:t3|/Users/me/code/api", "act"], "review:to:new|*": ["review:to:new|/Users/me/code/api", "act"],
@@ -598,7 +592,7 @@ const SHAPES = {
   "*:act:*:*": ["runbook:act:eng-1#2:run", "act"], "*:add:*": ["runbook:add:eng-1#2", "nav"], "*:edit:*:command": ["runbook:edit:eng-1#2:command", "nav"],
   "*:edit:*:status": ["runbook:edit:eng-1#2:status", "nav"], "*:edit:*:step": ["runbook:edit:eng-1#2:step", "nav"], "*:edit:*:where": ["runbook:edit:eng-1#2:where", "nav"],
   "*:pick:*": ["runbook:pick:eng-1#2", "act"], "*:status:*:*": ["runbook:status:eng-1#2:0", "act"],
-  "bell:*": ["bell:t3", "nav"], "flow.go:*": ["go:inbox", "nav"],
+  "bell:*": ["bell:t3", "nav"], "flow.go:*": ["go:runbook", "nav"],
   // Commands views parse that no menu lists: shells, other views and Herdr's toasts send them.
   "start:type:*": ["start:type:ENG-412", "nav"], "palette:type:*": ["palette:type:fork", "act"], "show:go:*": ["show:go:deploy#go", "nav"],
   "show:ask:*": ["show:ask:1:A", "nav"], "show:hide:*": ["show:hide:deploy", "nav"], "review:submit": ["review:submit", "act"],
@@ -606,14 +600,13 @@ const SHAPES = {
   "review:mode:*": ["review:mode:walkthrough", "nav"], "code:save": ["code:save", "act"], "routines:template:*": ["routines:template:standup", "act"],
   "routines:change:*": ["routines:change:sweep", "nav"], "runbook:book:*": ["runbook:book:eng-1:talk", "act"], "runbook:done:*": ["runbook:done:eng-1#2", "act"],
   "monitor:close-windows": ["monitor:close-windows", "nav"], "monitor:close:*": ["monitor:close:iss-1", "nav"],
-  "inbox:file": ["inbox:file", "nav"], "inbox:refresh": ["inbox:refresh", "nav"],
   "folder:": ["folder:delete|f1", "act"], "folder:fold|*": ["folder:fold|f1", "allowed"], "folder:space|*": ["folder:space|acme-db", "act"],
   "folder:new|*": ["folder:new|acme-db", "nav"], "folder:rename|*": ["folder:rename|f1", "nav"], "folder:delete|*": ["folder:delete|f1", "act"],
   "folder:move|*|*": ["folder:move|f1|acme-db", "act"], "folder:out|*": ["folder:out|acme-db", "act"],
   "split:": ["split:to|right|p1|acme-build", "act"], "split:on|right|*": ["split:on|right|p1", "nav"], "split:on|down|*": ["split:on|down|p1", "nav"],
   "split:to|*|*|local": ["split:to|right|p1|local", "nav"], "split:to|*|*|*": ["split:to|down|p1|acme-build", "act"], "split:again|*": ["split:again|p1", "act"],
   "split:route|*|*": ["split:route|none|p1", "nav"],
-  thread: ["thread", "nav"], "thread:": ["thread:release|s1", "act"], "thread:kind|*|*": ["thread:kind|s1|bug", "act"], "thread:release|*": ["thread:release|s1", "act"],
+  gitlab: ["gitlab", "nav"], thread: ["thread", "nav"], "thread:": ["thread:release|s1", "act"], "thread:kind|*|*": ["thread:kind|s1|bug", "act"], "thread:release|*": ["thread:release|s1", "act"],
   "thread:confirm|*": ["thread:confirm|s1", "nav"], "thread:resolve|*": ["thread:resolve|s1", "act"], "thread:forget|*": ["thread:forget|*", "act"],
   "update:next": ["update:next", "act"], "update:save": ["update:save", "act"], "update:skip": ["update:skip", "act"]
 };
@@ -651,10 +644,6 @@ function views(mod, f) {
   Object.assign(monitor, { byKey: new Map([["iss-1", { item: { key: "iss-1", acts: [{ id: "fix", label: "fix", action: "fix", args: ["api"] }] } }]]), toasts: toasts(), handle: focus(), confirm: null });
   const routines = Object.create(mod.Routines.prototype);
   Object.assign(routines, { toasts: toasts(), confirm: null, handle: focus(), form: { slug: null }, openForm() {}, leave() {}, pickTemplate() { f.effects.push("template"); }, entry: (k) => ({ slug: "sweep", id: "1", acts: [{ id: "talk", action: "talk", args: [k, null] }] }) });
-  const inbox = Object.create(mod.Inbox.prototype);
-  const row = { key: PR, path: "/r9", name: "acme/api#9", kind: "review", acts: [{ label: "review", key: "r", call: { fn: "review", args: [{ url: PR }] } }] };
-  Object.assign(inbox, { toasts: toasts(), pending: new Map(), details: new Map(), picked: new Set(), dialog: null, handle: focus(), current: () => row, rowByKey: () => row, folds: new Map(), unfolded: new Set(), filter: "",
-    isOpen: () => true, all: () => [row], pickAlike() { f.effects.push("pick alike"); }, pick() { f.effects.push("pick"); }, openFile() {}, refresh() {} });
   const mail = Object.create(mod.Mail.prototype);
   Object.assign(mail, { toasts: toasts(), handle: focus(), model: { messages: [{ id: "m1", fromName: "Maya", raw: { id: "m1" } }] }, hubAct: async (_cx, action) => f.effects.push(`mail ${action}`), openReading() {} });
   const meetings = Object.create(mod.Meetings.prototype);
@@ -682,8 +671,8 @@ function views(mod, f) {
   Object.assign(settings, { p: {}, tab: "options", all: false, at: 0, optionAt: 0, pointed: true, asking: null, report: null, toasts: toasts(), handle: focus(), rowAt: {},
     options: [{ key: "chat.nextSteps", title: "Suggest next prompts", kind: "toggle", value: false }, { key: "agents.pace", title: "Pace of the 7-day limit", kind: "choice", value: "week", choices: [{ value: "week", label: "Whole week" }, { value: "weekdays", label: "Weekdays" }] }],
     saving: new Set(), errors: {}, fields: new Map(), drafts: {}, field: null, hubState: "live", v: null, checking: false });
-  const all = { sidebar, home: h, runbook, monitor, routines, inbox, mail, meetings, todo, show, start, review, code, palette, update, settings };
-  const armed = () => ({ home: h.confirm, runbook: runbook.confirm, monitor: monitor.confirm, routines: routines.confirm, inbox: inbox.dialog, startTyped: start.started, homeSel: h.sel, picked: runbook.picked.size,
+  const all = { sidebar, home: h, runbook, monitor, routines, mail, meetings, todo, show, start, review, code, palette, update, settings };
+  const armed = () => ({ home: h.confirm, runbook: runbook.confirm, monitor: monitor.confirm, routines: routines.confirm, startTyped: start.started, homeSel: h.sel, picked: runbook.picked.size,
     options: update.pointed && settings.pointed ? null : "armed", updateStep: update.at });
   return { all, armed };
 }
@@ -737,7 +726,7 @@ test("every registered command, sent from outside the window, does nothing but n
       if (kind === "allowed") continue;
       assert.deepEqual(did, [], `${layout}: \`${sample}\` (${shape}) acts without its key`);
       const armed = plain(v.armed());
-      assert.deepEqual(armed, { home: null, runbook: null, monitor: null, routines: null, inbox: null, startTyped: false, homeSel: null, picked: 0, options: null, updateStep: 0 }, `${layout}: \`${sample}\` arms a confirm or picks something`);
+      assert.deepEqual(armed, { home: null, runbook: null, monitor: null, routines: null, startTyped: false, homeSel: null, picked: 0, options: null, updateStep: 0 }, `${layout}: \`${sample}\` arms a confirm or picks something`);
     }
   }
 });
@@ -810,17 +799,10 @@ test("every hub focus points at its row: the app's call site says so", async () 
 });
 
 test("an app a hub focus brought to a row runs nothing on the next real ⏎, letter or digit until the person moves", async () => {
-  const { mod, acts, requests, calls } = await fixture({ shown: "inbox" });
+  const { mod, acts, requests, calls } = await fixture({ shown: "todo" });
   const { cx, settled } = context();
   const hub = (v) => (v.toasts = toasts(), Object.assign(v, { handle: focus(), palette: null, dialog: null, filtering: false, confirm: null, form: null, editing: false, adding: false }));
   const apps = {
-    inbox: () => {
-      const v = hub(Object.create(mod.Inbox.prototype));
-      const row = { key: PR, path: "/mine/9", name: "acme/api#9", kind: "pr", acts: [{ label: "merge", key: "m", main: true, call: { fn: "merge", args: [] } }] };
-      Object.assign(v, { folds: new Map(), flashes: { start() {} }, rowByKey: () => row, clearFilter() {}, select: (r) => (v.sel = r.path) });
-      v.goTo(PR, cx, true);
-      return v;
-    },
     monitor: () => {
       const v = hub(Object.create(mod.Monitor.prototype));
       Object.assign(v, { model: { ready: true, apps: [{ key: "api", name: "api" }] }, closed: new Set(), opened: new Set(), filter: "", byKey: new Map([["api", { item: { key: "api", acts: [{ id: "fix", key: "f", action: "fix", args: [] }] } }]]), select: (k) => (v.sel = k) });

@@ -34,19 +34,11 @@ function cx_go(e) {
   hub.go({ app: e.app, key: e.key }).catch(() => {});
 }
 
-const DEFAULT_PINNED = ["inbox", "to-do", "runbook", "meetings"];
+const DEFAULT_PINNED = ["to-do", "runbook", "meetings"];
 const many = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 /** Home's overview: each pinned app in a few words, from the view the app itself draws. */
 const OVERVIEW = [
-  {
-    view: "inbox", space: "inbox", label: "Inbox", icon: "inbox",
-    line: (v) => {
-      const c = v.counts ?? {};
-      if (c.failing) return { text: `${many(c.failing, "PR")} failing`, tone: "destructive" };
-      return { text: c.direct ? `${many(c.direct, "review")} for you` : "nothing for you" };
-    },
-  },
   {
     view: "mail", space: "mail", label: "Mail", icon: "mail",
     line: (v) => (v.waiting ? null : { text: v.counts?.unread ? `${v.counts.unread} unread` : "nothing unread", tone: v.counts?.unread ? "warning" : null }),
@@ -748,7 +740,7 @@ export default class Home {
                 div()
                   .text_size(TEXT.base)
                   .text_color(k.foreground)
-                  .child("cockpit puts every coding agent beside its work: whose move it is, its ticket, PR, CI and deploy, with your inbox, runbooks, meetings and releases one key away."),
+                  .child("cockpit puts every coding agent beside its work: whose move it is, its ticket, PR, CI and deploy, with your runbooks, meetings and releases one key away."),
               )
               .child(way("install-claude", "In Claude Code", ["/plugin install cockpit --marketplace quaresc/cockpit", "/cockpit:setup"]))
               .child(way("install-shell", "With any other agent, in a shell", ["curl -fsSL https://raw.githubusercontent.com/quaresc/cockpit/main/install.sh | sh", "cockpit setup"]))
@@ -850,19 +842,15 @@ export default class Home {
       .child(div().truncate().text_size(TEXT.base).text_color(k.mutedFg).child(`${plural(all, "agent")} · ${needs ? `${needs} ${needs === 1 ? "needs" : "need"} you` : "nothing needs you"}`));
   }
 
-  /** The numbers across the top, as a SaaS dashboard opens: agents, reviews, PRs, what shipped, spend. */
+  /** The numbers across the top, as a SaaS dashboard opens: agents, what shipped, spend. */
   kpis(cols, narrow) {
     const k = tokens();
-    const inbox = this.apps.inbox?.counts ?? {};
-    const prs = this.apps.inbox?.prs ?? [];
     const week = this.home?.week?.by_day ?? [];
     const shipped = week.reduce((n, d) => n + (d.count ?? 0), 0);
     const landed = (this.home?.landed?.days ?? []).map((d) => d.count ?? 0);
     // Null until the transcripts are counted, or when they hold no tokens: no tile rather than a made-up $0.
     const spend = spendTile(this.home?.spend);
     const needs = cols.all.needs.filter((c) => c.agent).length;
-    const fix = (this.home?.fixing ?? []).length;
-    const ready = (this.home?.ready ?? []).length;
     const tile = (id, o) => StatTile(id, o).min_w(narrow ? 140 : 160);
     return h_flex()
       .id("home-kpis")
@@ -870,8 +858,6 @@ export default class Home {
       .gap(12)
       .flex_wrap()
       .child(tile("kpi-agents", { label: "Agents", icon: "bot", value: needs ? `${needs} need you` : String(cols.all.working.length + cols.all.needs.length + cols.all.done.length), hint: `${cols.all.working.length} working · ${cols.all.done.length} done`, onClick: () => needs && goToAgent(cols.all.needs.find((c) => c.agent).agent) }))
-      .child(tile("kpi-reviews", { label: "Reviews for you", icon: "eye", value: String(inbox.direct ?? 0), hint: `${Math.max(0, (inbox.reviews ?? 0) - (inbox.direct ?? 0))} for your team`, onClick: () => show("inbox") }))
-      .child(tile("kpi-prs", { label: "Your PRs", icon: "git-pull-request", value: String(prs.length), hint: [ready && `${ready} ready`, fix && `${fix} to fix`].filter(Boolean).join(" · ") || "nothing to do", onClick: () => show("inbox") }))
       .child(tile("kpi-shipped", { label: "Merged this week", icon: "git-merge", value: String(shipped), hint: `${landed.at(-1) ?? 0} today` }))
       .when(Boolean(spend), (e) => e.child(tile("kpi-spend", { label: "Agent spend", icon: "dollar", value: spend.value, hint: spend.hint, onClick: () => openUsage() })));
   }

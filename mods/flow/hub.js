@@ -86,14 +86,14 @@ export const sleep = (cx, ms) => new Promise((resolve) => cx.timer.after(ms, () 
 const NOT_INSTALLED = "cockpit is not installed in this Herdr home";
 const READ_ONLY = "the remote cockpit client is read-only; this action needs a local cockpit installation";
 const REMOTE_READS = new Set(["ping", "view", "search", "fetch", "events", "history", "shown"]);
-const APPS = new Set(["inbox", "todo", "runbook", "meetings", "mail", "monitor", "routines", "show"]);
+const APPS = new Set(["todo", "runbook", "meetings", "mail", "monitor", "routines", "show"]);
 /** The actions a remote desk runs on the runner with `cockpit hub act <app>`, the hub's TCP gate untouched. */
 const RUNNER_ACTS = {
   review: new Set(["send", "walkthrough", "stop_walkthrough"]),
   runbook: new Set(["done", "set", "add", "undo", "run_step"]),
 };
 /** The app behind a pinned space's name, as `cockpit focus space:<name>` gives it. */
-const SPACES = { inbox: "inbox", runbook: "runbook", "to-do": "todo", todo: "todo", meetings: "meetings", monitor: "monitor", routines: "routines", mail: "mail" };
+const SPACES = { runbook: "runbook", "to-do": "todo", todo: "todo", meetings: "meetings", monitor: "monitor", routines: "routines", mail: "mail" };
 
 /** Brings an app into view on this desktop, without a row to select. */
 function localShow(app) {
@@ -115,9 +115,15 @@ function localFocus(target) {
   return { ok: true };
 }
 
+/** A row of the hub's inbox, which Flow has no screen for: a PR opens in the browser, anything else says so. */
+function inboxRow(key) {
+  if (/^https?:\/\//.test(key)) openUrl(key).catch(() => {});
+  else herdr.notify({ title: key || "The inbox", body: "Flow has no inbox to show it in.", level: "info", timeout: 5000 });
+  return { ok: true };
+}
+
 /** The apps whose rows a `focus` target names (`meeting:<key>`), as their views are called. */
 const FOCUSED_APPS = {
-  inbox: "inbox",
   todo: "todo",
   mail: "mail",
   monitor: "monitor",
@@ -139,7 +145,9 @@ export function focusHere(given) {
   if (at < 1) return false;
   const kind = target.slice(0, at);
   const key = target.slice(at + 1);
+  if (kind === "inbox") return Boolean(inboxRow(key));
   if (kind === "space") {
+    if (key === "inbox") return true;
     if (!APPS.has(SPACES[key] ?? key)) return false;
     localShow(SPACES[key] ?? key);
     return true;
@@ -419,10 +427,14 @@ async function connect(state, cx) {
   }
 }
 
-/** Runs the cockpit binary on the install's HOME, driving this Herdr window: { code, stdout, stderr }. */
-export async function cockpit(args) {
+/**
+ * Runs the cockpit binary on the install's HOME, driving this Herdr window: { code, stdout, stderr }. `timeout` (ms)
+ * gives a long command such as a browser sign-in more than exec's 30 seconds.
+ */
+export async function cockpit(args, { timeout } = {}) {
   if (checking()) throw new Error(CHECKING);
   const { bin, home, env = {}, machine, host } = await install();
+  const opts = timeout ? { timeout } : undefined;
   const vars = Object.entries(env).filter(([k]) => !machine || k !== "HERDR_APP_HOME").map(([k, v]) => `${k}=${v}`);
   if (args[0] === "focus" && args.length === 2 && focusHere(args[1])) return { code: 0, stdout: "", stderr: "" };
   if (machine) {
@@ -431,7 +443,7 @@ export async function cockpit(args) {
     if (args[0] !== "hub" || !(["start", "ping", "shown"].includes(args[1]) || runner)) throw new Error(READ_ONLY);
     return exec("env", [...vars, `HOME=${home}`, `COCKPIT_HUB_LISTEN=${host}`, "COCKPIT_FRONTEND=app", bin, ...args], { on: machine });
   }
-  return exec("env", [`HOME=${home}`, `HERDR_APP_HOME=${appHome()}`, "COCKPIT_FRONTEND=app", ...vars, bin, ...args]);
+  return exec("env", [`HOME=${home}`, `HERDR_APP_HOME=${appHome()}`, "COCKPIT_FRONTEND=app", ...vars, bin, ...args], opts);
 }
 
 /**
@@ -440,6 +452,7 @@ export async function cockpit(args) {
  */
 export async function request(op, fields = {}, cx = null) {
   if (checking()) throw new Error(CHECKING);
+  if (op === "go" && fields.target?.app === "inbox") return inboxRow(String(fields.target.key ?? ""));
   // A page opens from the window itself: macOS keeps the browser behind when a background process (the hub) asks.
   if (op === "act" && fields.action === "open_url" && typeof fields.args?.[0] === "string") {
     const url = fields.args[0];

@@ -200,12 +200,25 @@ test("the runner's refusal of a review action comes back as its error", async t 
 test("links and navigation stay on the desktop", async t => {
   const f = await fixture(t);
   await f.hub.act("inbox", "open_url", ["https://github.com/acme/api/pull/4"]);
-  await f.hub.go({ app: "inbox", key: "https://github.com/acme/api/pull/4" });
+  await f.hub.go({ app: "todo", key: "ENG-412" });
   const command = f.calls.find(call => call[0] === "exec");
   assert.equal(command[1], "cmd");
   assert.equal(command[3]?.on, undefined);
-  assert.deepEqual(f.calls.find(call => call[0] === "run"), ["run", "flow.go:inbox"]);
+  assert.deepEqual(f.calls.find(call => call[0] === "run"), ["run", "flow.go:todo"]);
   assert.equal(f.messages.length, 0);
+});
+
+for (const remote of [true, false]) test(`a PR the hub's inbox names opens its page on a ${remote ? "remote" : "local"} desk, as Flow has no inbox`, async t => {
+  const f = await fixture(t, remote);
+  const pr = "https://github.com/acme/api/pull/4";
+  await f.hub.go({ app: "inbox", key: pr });
+  await f.hub.cockpit(["focus", `herdr-app:inbox:${pr}`]);
+  await until(() => f.calls.filter(call => call[0] === "exec").length === 2);
+  const opened = f.calls.filter(call => call[0] === "exec");
+  assert.deepEqual(opened.map(call => call[2].at(-1)), [pr, pr]);
+  assert.ok(opened.every(call => call[3]?.on === undefined), "the page opens on this desk");
+  assert.ok(!f.calls.some(call => call[0] === "run"), "no screen is asked for");
+  assert.equal(f.messages.length, 0, "the hub is never asked");
 });
 
 test("runner startup never receives the desktop's app home", async t => {
@@ -278,10 +291,10 @@ test("an expired discovery token is refreshed before sending an operation", asyn
 
 test("subscriptions deliver changes, reconnect after a silent link and stop cleanly", async t => {
   const f = await fixture(t), r = runtime(t);
-  const subscription = f.hub.subscribe(r.cx, { views: ["inbox"], focus: "inbox" }, r.message, r.state);
+  const subscription = f.hub.subscribe(r.cx, { views: ["todo"], focus: "todo" }, r.message, r.state);
   t.after(() => subscription.stop());
   await until(() => r.received.length === 1);
-  for (const socket of f.clients) socket.write('{"view":"inbox","value":{"tickets":[{"id":"ENG-402"}]}}\n');
+  for (const socket of f.clients) socket.write('{"view":"todo","value":{"tickets":[{"id":"ENG-402"}]}}\n');
   await until(() => r.received.length === 2);
   assert.equal(r.received[1].value.tickets[0].id, "ENG-402");
   const watchdog = [...r.timers].find(timer => timer.ms === 65000);
@@ -290,7 +303,7 @@ test("subscriptions deliver changes, reconnect after a silent link and stop clea
   await until(() => r.received.length === 3);
   assert.ok(r.states.some(state => state.includes("timed out")));
   assert.equal(r.states.at(-1), "live");
-  await f.hub.go({ app: "inbox", key: "ENG-402" });
+  await f.hub.go({ app: "todo", key: "ENG-402" });
   assert.equal(r.received.at(-1).target.key, "ENG-402");
   subscription.stop();
   await Promise.all(r.tasks);
@@ -335,11 +348,11 @@ test("subscriptions rediscover the port and token after a hub restart", async t 
 
 test("navigation to an unopened view waits for its rows before focusing", async t => {
   const f = await fixture(t), r = runtime(t);
-  await f.hub.go({ app: "inbox", key: "ENG-401" });
-  const subscription = f.hub.subscribe(r.cx, { views: ["inbox"], focus: "inbox" }, r.message, r.state);
+  await f.hub.go({ app: "todo", key: "ENG-401" });
+  const subscription = f.hub.subscribe(r.cx, { views: ["todo"], focus: "todo" }, r.message, r.state);
   t.after(() => subscription.stop());
   await until(() => r.received.length === 2);
-  assert.equal(r.received[0].view, "inbox");
+  assert.equal(r.received[0].view, "todo");
   assert.equal(r.received[1].target.key, "ENG-401");
   subscription.stop();
   await Promise.all(r.tasks);
@@ -362,13 +375,13 @@ test("navigation is consumed by its view once, not by a sidebar subscription", a
   const sidebar = f.hub.subscribe(r.cx, { views: ["inbox"], notify: true }, () => {});
   t.after(() => sidebar.stop());
   await until(() => f.messages.some(m => m.op === "subscribe"));
-  await f.hub.go({ app: "inbox", key: "ENG-401" });
-  let sub = f.hub.subscribe(r.cx, { views: ["inbox"], focus: "inbox" }, r.message);
+  await f.hub.go({ app: "todo", key: "ENG-401" });
+  let sub = f.hub.subscribe(r.cx, { views: ["todo"], focus: "todo" }, r.message);
   t.after(() => sub.stop());
   await until(() => r.received.length === 2);
   assert.equal(r.received[1].target.key, "ENG-401");
   sub.stop();
-  sub = f.hub.subscribe(r.cx, { views: ["inbox"], focus: "inbox" }, r.message);
+  sub = f.hub.subscribe(r.cx, { views: ["todo"], focus: "todo" }, r.message);
   await until(() => r.received.length >= 3);
   assert.equal(r.received.filter(m => m.focus).length, 1);
   sub.stop();
@@ -423,8 +436,8 @@ test("remote agent models carry their machine through reads and subscriptions", 
 
 test("a notification that names a space opens it on the desktop", async t => {
   const f = await fixture(t);
-  await f.hub.cockpit(["focus", "herdr-app:space:inbox"]);
-  assert.deepEqual(f.calls.find(call => call[0] === "run"), ["run", "flow.go:inbox"]);
+  await f.hub.cockpit(["focus", "herdr-app:space:runbook"]);
+  assert.deepEqual(f.calls.find(call => call[0] === "run"), ["run", "flow.go:runbook"]);
   assert.equal(f.messages.length, 0);
 });
 

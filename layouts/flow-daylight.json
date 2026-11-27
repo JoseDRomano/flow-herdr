@@ -157,14 +157,6 @@
               ]
             },
             {
-              "id": "inbox",
-              "type": "block",
-              "content": { "mod": "flow", "props": { "app": "inbox" } },
-              "radius": 14,
-              "background": "background",
-              "border": { "width": 1, "color": "glass_line" }
-            },
-            {
               "id": "runbook",
               "type": "block",
               "content": { "mod": "flow", "props": { "app": "runbook" } },

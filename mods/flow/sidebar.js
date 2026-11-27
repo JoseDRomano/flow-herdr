@@ -25,7 +25,6 @@ import { AgentsModel, QuestionCard, QuotaBars, StageMark, Chips, STAGES, stageCo
 
 /** The config's pinned spaces that are apps here, by their space name; their key comes from the shown layout's keys. */
 export const APPS = {
-  inbox: { label: "Inbox", icon: "inbox" },
   runbook: { label: "Runbook", icon: "book" },
   "to-do": { child: "todo", label: "To-do", icon: "list-todo" },
   meetings: { label: "Meetings", icon: "calendar" },
@@ -33,12 +32,11 @@ export const APPS = {
   routines: { label: "Routines", icon: "clock" },
   mail: { label: "Mail", icon: "mail" },
 };
-const DEFAULT_SPACES = ["inbox", "terminal", "actions", "to-do", "runbook", "meetings"];
+const DEFAULT_SPACES = ["terminal", "actions", "to-do", "runbook", "meetings"];
 
 /** The fields of each app's view that appBadge reads: the hub sends these alone, and only when they move. */
 const BADGE_FIELDS = {
   todo: ["open"],
-  inbox: ["counts"],
   monitor: ["tiles"],
   routines: ["tiles"],
   meetings: ["meetings", "today", "banner"],
@@ -50,7 +48,6 @@ function appBadge(app, v) {
   if (!v) return null;
   const of = (count, tone) => (count ? { count, tone } : null);
   if (app === "todo") return of(v.open, null);
-  if (app === "inbox") return of(v.counts?.direct, "warning");
   if (app === "monitor") {
     const t = v.tiles ?? {};
     return of((t.alerts ?? 0) + (t.failed ?? 0), "destructive") ?? of(t.newErrors, "warning");

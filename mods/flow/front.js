@@ -5,7 +5,7 @@ import { shared, layout } from "herdr";
 import { screens } from "./screens.js";
 
 /** The apps that are screens of a layout's stack: one of them is in front at a time. */
-const SCREENS = new Set(["home", "inbox", "runbook", "todo", "meetings", "monitor", "routines", "mail"]);
+const SCREENS = new Set(["home", "runbook", "todo", "meetings", "monitor", "routines", "mail"]);
 
 const copies = () => (globalThis.flowCopies ??= new Set());
 

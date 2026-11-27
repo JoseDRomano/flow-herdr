@@ -5,7 +5,6 @@ import { run, shared, setShared, layout, focused, agents, notify } from "herdr";
 
 /** The cockpit apps the layout stacks after its own screens: [child, label, icon]. */
 const APPS = [
-  ["inbox", "Inbox", "inbox"],
   ["runbook", "Runbook", "book"],
   ["todo", "To-do", "list-todo"],
   ["meetings", "Meetings", "calendar"],

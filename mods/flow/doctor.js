@@ -13,6 +13,8 @@ import { MOVE_FIRST } from "./person.js";
 import { openInEditor, editorLabel } from "./editor.js";
 import { versions, checkNow, versionLine, openUpdate } from "./update.js";
 import { shownLayout } from "./screens.js";
+import { openGitlabForm, readGitlab, GITLAB_SHARED } from "./gitlab-form.js";
+import { SECTIONS } from "./gitlab.js";
 import { tokens, TEXT, RADIUS, Icon, Button, Badge, Tabs, Skeleton, Spinner, Toaster, Mono, Card, AlertDialog, Toggle, AgentLogo, Pills, TextField, viewport } from "./ui.js";
 
 // A Herdr without ScrollHandle still draws the sheet; j/k then move without scrolling.
@@ -69,7 +71,7 @@ export const LAYOUT_CHOICES = [
     title: "Flow",
     points: [
       "One bar across the top: your tabs, the search and the bell",
-      "Your agents' terminals as soft cards, the inbox, review and runbooks beside them",
+      "Your agents' terminals as soft cards, review and runbooks beside them",
       "A sidebar under the bar with your quotas, Needs you and every agent and space",
       "Flow's own teal theme, light and dark, with Geist type",
     ],
@@ -503,6 +505,8 @@ export default class Settings {
     this.check(cx, true);
     this.follow(cx);
     this.readVersions(cx);
+    // What config.json says of GitLab, shared so the card shows it; the dialog shares it again when it changes.
+    void readGitlab();
   }
 
   /** Follows the hub's `options` view for as long as the sheet is open, and what the link to the hub says. */
@@ -1101,6 +1105,36 @@ export default class Settings {
     ];
   }
 
+  /** GitLab's card: whether cockpit reads a GitLab server, which one and what from it, and the button that connects it. */
+  gitlabRow(k) {
+    const found = shared(GITLAB_SHARED);
+    const parts = found?.sections?.map((s) => SECTIONS[s]?.toLowerCase()).filter(Boolean) ?? [];
+    const line = !found
+      ? "Your merge requests, pipelines and issues, from GitLab.com or your company's own server."
+      : parts.length
+        ? `Connected to ${found.host}: ${parts.join(", ")}.`
+        : `${found.host} is saved, but nothing is mapped yet: connect again to finish.`;
+    return h_flex()
+      .id("options-gitlab")
+      .my(8)
+      .p(12)
+      .gap(12)
+      .items_center()
+      .rounded(RADIUS.md)
+      .border_1()
+      .border_color(k.border)
+      .bg(k.card)
+      .child(Icon("git-merge", { size: 18, color: found && parts.length ? k.success : k.mutedFg }))
+      .child(
+        v_flex()
+          .flex_1()
+          .min_w(0)
+          .child(div().text_size(TEXT.sm).font_semibold().child("GitLab"))
+          .child(div().whitespace_normal().text_size(TEXT.xs).text_color(k.mutedFg).child(line)),
+      )
+      .child(Button("options-gitlab-connect", { label: found ? "Manage" : "Connect GitLab", icon: found ? undefined : "link", variant: found ? "outline" : "default", size: "sm", onClick: () => openGitlabForm() }));
+  }
+
   /**
    * The Options tab's rows: every option section by section, then what only the file holds. While the hub does not
    * answer it says so with Start it, and still opens the file.
@@ -1118,11 +1152,13 @@ export default class Settings {
           .items_center()
           .child(div().flex_1().min_w(0).whitespace_normal().text_size(TEXT.sm).text_color(k.mutedFg).child("The options are read and saved through the hub. config.json itself opens without it, and cockpit options lists them in a terminal."))
           .child(Button("options-open-file", { label: `Open config.json in ${this.editor}`, icon: "external", variant: "outline", size: "sm", onClick: (_e, cx) => this.openFile(cx) })),
+        this.gitlabRow(k),
       ];
     }
     if (!this.options.length) return [div().p(24).text_size(TEXT.sm).text_color(k.mutedFg).child("This cockpit has no options to set from here: cockpit options lists them in a terminal.")];
     const rows = down ? [div().pb(12).child(down)] : [];
     rows.push(div().pb(4).text_size(TEXT.sm).text_color(k.mutedFg).child("Saved in ~/.config/cockpit/config.json as you change them; cockpit options lists them in a terminal."));
+    rows.push(this.gitlabRow(k));
     for (const section of sectioned(this.view)) {
       rows.push(heading(k, `section-${section.title}`, section.title, true));
       for (const [o, i] of section.rows) {

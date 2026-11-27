@@ -329,9 +329,10 @@ test("⌘J runs once, in the layout shown, on the agents a copy already follows,
   assert.deepEqual(plain(calls.slice(0, 2)), [["agent.focus", { terminal: "t2" }], ["layout.select", { stack: "center", child: "work" }]]);
   assert.equal(shared["flow.app"], "work");
   calls.length = 0;
-  assert.equal(mod.runCommand("go:inbox", cx, "flow"), true);
-  assert.deepEqual(plain(calls[0]), ["layout.select", { stack: "center", child: "inbox" }]);
+  assert.equal(mod.runCommand("go:runbook", cx, "flow"), true);
+  assert.deepEqual(plain(calls[0]), ["layout.select", { stack: "center", child: "runbook" }]);
   assert.equal(mod.runCommand("go:needs", cx, "flow"), false, "a screen the layout does not have");
+  assert.equal(mod.runCommand("go:inbox", cx, "flow"), false, "Flow has no inbox");
 });
 test("⌘J passes a driven session, which Flow has no chat to read in, and goes on to the next agent", async () => {
   const agents = [{ address: "t1", status: "blocked", title: "Quota banner", tab: "b", space: "s" }];
@@ -407,7 +408,7 @@ test("the palette leaves out a session cockpit drives, and a jump to an agent ma
 });
 test("the palette lists what the shown layout has", async () => {
   const flow = await fixture({ layout: "flow" });
-  assert.deepEqual(plain(flow.mod.screens().list).map((s) => s.child).slice(0, 3), ["home", "work", "inbox"]);
+  assert.deepEqual(plain(flow.mod.screens().list).map((s) => s.child).slice(0, 3), ["home", "work", "runbook"]);
   const ids = palette(flow.mod, []).entries().map((e) => e.id);
   assert.ok(ids.includes("flow.queue") && ids.includes("flow.agent-view") && ids.includes("flow.thread") && ids.includes("flow.resume"));
   assert.ok(flow.mod.available("flow", "queue") && !flow.mod.available("flow", "terminal") && !flow.mod.available("flow", "sidebar"));

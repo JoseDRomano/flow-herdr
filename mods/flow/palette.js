@@ -289,7 +289,6 @@ export default class Palette {
       if (e.command === "flow.keys") add({ ...base, sheet: true });
       else add({ ...base, act: () => (run(keyed(paletteAction(e))), null) });
     }
-    add({ id: "refresh", group: "Flow", icon: "refresh", title: "Refresh the inbox", words: "fetch PRs reviews tickets CI now", act: () => hub.act("inbox", "request_refresh") });
     add({ id: "brief", group: "Flow", icon: "newspaper", title: "Today's brief", words: "morning meetings reviews CI tickets", page: "brief" });
     add({ id: "kit", group: "Flow", icon: "palette", title: "Design kit", words: "components gallery ui", name: "flow.kit", act: () => (run("flow.kit"), null) });
 

@@ -19,6 +19,7 @@ import { projectPanels } from "./projects.js";
 import { FOLDERS, deleteFolder, toggleFolder, moveMachine } from "./folders.js";
 import { openFolderName } from "./folder-name.js";
 import { openThreadForm } from "./thread-form.js";
+import { openGitlabForm } from "./gitlab-form.js";
 import { THREADS, KINDS, mark, release, resolve, forget, activity } from "./threads.js";
 import { openMachineMenu, openRouteForm, splitOnto, reconnect } from "./termmenu.js";
 
@@ -71,6 +72,7 @@ export const CATALOGUE = [
   entry("flow.settings:health", "Flow settings: Health", "shield-check", "Window", "doctor diagnostics checks report setup getting started hub fix"),
   entry("flow.settings:agents", "Flow settings: Agents", "bot", "Window", "installed providers can start resume fork tools"),
   entry("flow.settings:layout", "Flow settings: Layout", "layout", "Window", "flow look switch screenshot"),
+  entry("flow.gitlab", "Connect GitLab", "git-merge", "Window", "gitlab self-hosted merge requests mr pipelines issues connect sign in server"),
   entry("flow.next-waiting", "Next agent waiting for you", "bell", "Agents", "needs you question jump"),
   entry("flow.next:blocked", "Next blocked agent", "circle-dot", "Agents", "needs you"),
   entry("flow.next:done", "Next finished agent", "circle-check", "Agents", "done"),
@@ -487,6 +489,7 @@ const WINDOW = {
   // The name the sheet had: a key bound to it still opens it, on the checks it showed.
   diagnostics: (_a, _cx, ctx) => openSettings({ tab: "health", person: ctx.person }),
   usage: () => openUsage(),
+  gitlab: () => openGitlabForm(),
   start: () => openStart(),
   thread: () => openThreadForm(),
   // A thread's menus: `thread:new|<kind>` opens the dialog on that kind, `edit[|<space>]` opens it on that thread (the

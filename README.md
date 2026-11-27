@@ -140,6 +140,24 @@ A bridge pane is a terminal on the tab's machine, so Herdr can't put a copied im
 the program there, which finds no image in that machine's clipboard. To paste images into an agent on another machine,
 run it in a thread on that machine.
 
+## GitLab
+
+**Connect GitLab**, in Flow settings → Options or the palette, points cockpit's hub at GitLab.com or your company's own
+server. Pick the kind, give a self-hosted server's address (a page of it pasted whole works too), and choose what to
+read: merge requests (always), pipelines and issues. Flow then:
+
+1. checks the server answers and has GitLab's MCP server (`https://<server>/api/v4/mcp`, GitLab 18.6 or later with the
+   MCP server and OAuth dynamic client registration turned on by an administrator), and says why when it doesn't: a
+   VPN, a certificate this Mac doesn't trust, or an older GitLab;
+2. saves the server as `servers.GitLab` in `~/.config/cockpit/config.json`;
+3. signs in through your browser (`cockpit connector login GitLab`), so it reads GitLab as the account you use there;
+4. has your default agent map GitLab's tools for each part (`cockpit connector map code|ci|tickets GitLab`), a minute
+   or two each, since the tools differ between GitLab versions;
+5. reads your open merge requests once to show it works.
+
+Pipelines replace GitHub's checks as cockpit's CI source, and issues replace your tickets connector; the dialog says so
+before you connect. **Manage** in the same card connects again or disconnects.
+
 ## What stays cockpit's
 
 - The **hub and the `cockpit` binary**. Flow reads `cockpit.json` in the Herdr home to find them, runs `cockpit`

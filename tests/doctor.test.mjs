@@ -87,7 +87,13 @@ async function fixture(stdout = JSON.stringify(REPORT), answers = null, { entry 
       openOverlay: (o) => opened.push(o), closeOverlay: (o) => closed.push(o),
       run: (name, args) => (commands.push([name, args]), null), notify: (n) => notices.push(n),
       readTextFile: async (path) => state.files[path] ?? null,
-      exec: async (...args) => (executed.push(args), { code: 0, stdout: "", stderr: "" }),
+      // As Herdr's: the write lands only while the file still holds what the writer read.
+      writeTextFile: async (path, text, expected) => {
+        if ((state.files[path] ?? null) !== expected) throw new Error(`${path} changed`);
+        state.files[path] = text;
+        return null;
+      },
+      exec: async (...args) => (executed.push(args), state.exec ? state.exec(...args) : { code: 0, stdout: "", stderr: "" }),
       window: () => ({ platform: "macos" }),
       theme: () => ({ foreground: "#eeeeee", muted: "#aaaaaa", dim: "#888888", background: "#101010", border: "#333333", hover: "#222222", accent: "#5555ff", ansi1: "#ff0000", ansi2: "#00ff00" }),
     },
@@ -945,4 +951,168 @@ test("the Layout tab is the fourth: its number key shows it, and Esc still close
   assert.equal(f.doctor.isDark("#101010"), true);
   assert.equal(f.doctor.isDark("#fafaf8ff"), false);
   assert.equal(f.doctor.isDark(undefined), true);
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Connect GitLab: the settings card and its dialog
+
+const CONFIG = "/Users/me/.config/cockpit/config.json";
+const COPY = "/Users/me/.cache/cockpit/config.json";
+const MR_LIST = JSON.stringify([{ iid: 7, title: "Store and enforce daily quotas", references: { full: "acme/api!7" } }, { iid: 9, title: "Quota headers" }]);
+
+/** A dialog's context: its spawned work kept to wait for. */
+function dialogCx() {
+  const tasks = [];
+  const cx = { spawn: (fn) => tasks.push(fn(cx)), notify() {}, focus_handle: () => ({ focus() {} }), stop_propagation() {} };
+  const settled = async () => {
+    for (let n = -1; n !== tasks.length; ) {
+      n = tasks.length;
+      await Promise.all(tasks);
+    }
+  };
+  return { cx, settled };
+}
+
+/** curl as a GitLab server at https://gitlab.acme.example answers it: `status(url)` gives each address's HTTP status. */
+const curl = (status) => async (cmd, args) => (cmd === "curl" ? { code: 0, stdout: String(status(args.at(-1))), stderr: "" } : { code: 0, stdout: "", stderr: "" });
+const acmeGitlab = (url) => (url === "https://gitlab.acme.example/api/v4/version" || url === "https://gitlab.acme.example/api/v4/mcp" ? 401 : 404);
+
+/** cockpit mapping a section as `cockpit connector map` does: written into config.json with its tools. */
+const mapsInto = (f, section) => () => {
+  const config = JSON.parse(f.state.files[CONFIG]);
+  config[section] = { server: "GitLab", name: "GitLab", enabled: true, tools: { listMine: { tool: "list_merge_requests" } }, fields: { prs: "" } };
+  f.state.files[CONFIG] = JSON.stringify(config);
+  return { code: 0, stdout: `Mapped GitLab for ${section}: 2 items`, stderr: "" };
+};
+
+test("the Options tab offers Connect GitLab, and says what is connected once it is", async () => {
+  const f = await fixture();
+  const { s } = await sheet(f);
+  const k = { mutedFg: "#888", success: "#0a0", border: "#333", card: "#111" };
+  let words = f.words(s.gitlabRow(k));
+  assert.ok(words.includes("Your merge requests, pipelines and issues, from GitLab.com or your company's own server."));
+  assert.ok(f.flat(s.gitlabRow(k)).some((el) => el?.made?.some(([key, id]) => key === "id" && id === "options-gitlab-connect")));
+  f.state.files[CONFIG] = JSON.stringify({ servers: { GitLab: { url: "https://gitlab.acme.example/api/v4/mcp" } }, code: { server: "GitLab", tools: { listMine: {} } } });
+  const again = await sheet(f);
+  words = f.words(again.s.gitlabRow(k));
+  assert.ok(words.includes("Connected to gitlab.acme.example: merge requests."), words.join(" | "));
+});
+
+test("connecting a self-hosted GitLab finds the server in a pasted page, signs in, maps each part and reads once", async () => {
+  const f = await fixture(undefined, []);
+  f.state.files[CONFIG] = JSON.stringify({ github: { org: "acme" }, servers: { linear: { url: "https://mcp.linear.app/mcp" } } });
+  f.state.files[COPY] = JSON.stringify({ reposDir: "/Users/me/src" });
+  f.state.exec = curl(acmeGitlab);
+  const answers = [() => ({ code: 0, stdout: "Logged in to https://gitlab.acme.example/api/v4/mcp", stderr: "" }), mapsInto(f, "code"), mapsInto(f, "ci"), () => ({ code: 0, stdout: MR_LIST, stderr: "" })];
+  f.ran.length = 0;
+  const { cx, settled } = dialogCx();
+  const dialog = await fixture(undefined, answers, { entry: "./gitlab-form.js" });
+  Object.assign(dialog.state, { files: f.state.files, exec: f.state.exec });
+  const d = new dialog.mod.default();
+  d.init({}, cx);
+  await settled();
+  d.kind = "self";
+  d.address.type("https://gitlab.acme.example/acme/api/-/merge_requests/7", cx);
+  d.connect(cx);
+  await settled();
+  assert.equal(d.error, "");
+  assert.equal(d.phase, "done");
+  assert.deepEqual(plain(d.list.map((s) => d.states[s.id])), ["done", "done", "done", "done", "done", "done"]);
+  assert.equal(d.list[2].label, "Sign in to gitlab.acme.example in your browser", "the project path was a page, not where GitLab is");
+  assert.deepEqual(plain(dialog.ran), [["connector", "login", "GitLab"], ["connector", "map", "code", "GitLab"], ["connector", "map", "ci", "GitLab"], ["connector", "read", "code", "listMine"]]);
+  const config = JSON.parse(dialog.state.files[CONFIG]);
+  assert.deepEqual(config.servers, { linear: { url: "https://mcp.linear.app/mcp" }, GitLab: { url: "https://gitlab.acme.example/api/v4/mcp" } });
+  assert.equal(config.github.org, "acme");
+  const copy = JSON.parse(dialog.state.files[COPY]);
+  assert.equal(copy.code.server, "GitLab", "the hub reads sections from the resolved copy first");
+  assert.equal(copy.ci.server, "GitLab");
+  assert.equal(copy.servers, undefined);
+  assert.equal(copy.reposDir, "/Users/me/src");
+  assert.equal(d.notes.read, "2 open merge requests of yours");
+  assert.deepEqual(plain(dialog.shared.get("flow.gitlab")), { base: "https://gitlab.acme.example", host: "gitlab.acme.example", sections: ["code", "ci"] });
+});
+
+test("a GitLab behind a VPN the Mac is not on stops at the check, writes nothing, and Retry goes on from there", async () => {
+  const answers = [];
+  const f = await fixture(undefined, answers, { entry: "./gitlab-form.js" });
+  f.state.files[CONFIG] = JSON.stringify({ github: { org: "acme" } });
+  const before = f.state.files[CONFIG];
+  f.state.exec = async () => ({ code: 6, stdout: "000", stderr: "curl: (6) Could not resolve host: gitlab.acme.example" });
+  const { cx, settled } = dialogCx();
+  const d = new f.mod.default();
+  d.init({}, cx);
+  await settled();
+  d.kind = "self";
+  d.address.type("gitlab.acme.example", cx);
+  d.connect(cx);
+  await settled();
+  assert.equal(d.phase, "failed");
+  assert.equal(d.states.check, "failed");
+  assert.match(d.error, /can't reach gitlab\.acme\.example: the name does not resolve.*VPN/);
+  assert.equal(f.state.files[CONFIG], before);
+  assert.equal(f.ran.length, 0, "nothing signs in before the server answers");
+  // On the VPN, Retry runs again from the check; a sign-in GitLab refuses stops there with GitLab's own words.
+  f.state.exec = curl(acmeGitlab);
+  answers.push(() => ({ code: 1, stdout: "", stderr: "cockpit: error: access_denied" }));
+  d.runFrom(d.failedAt, cx);
+  await settled();
+  assert.deepEqual(plain([d.states.check, d.states.save, d.states.login]), ["done", "done", "failed"]);
+  assert.equal(d.error, "access_denied");
+  assert.equal(d.failedAt, 2);
+  assert.equal(JSON.parse(f.state.files[CONFIG]).servers.GitLab.url, "https://gitlab.acme.example/api/v4/mcp");
+  // Retry from the sign-in skips the check and the save.
+  answers.push(() => ({ code: 0, stdout: "", stderr: "" }), mapsInto(f, "code"), mapsInto(f, "ci"), () => ({ code: 0, stdout: "[]", stderr: "" }));
+  d.runFrom(d.failedAt, cx);
+  await settled();
+  assert.equal(d.phase, "done");
+  assert.equal(d.notes.read, "No open merge requests of yours yet");
+  assert.equal(f.executed.filter(([cmd]) => cmd === "curl").length, 1 + 2, "unreached, the MCP server is not asked; the last Retry checks nothing");
+});
+
+test("an older GitLab with no MCP server says so before anything is saved", async () => {
+  const f = await fixture(undefined, [], { entry: "./gitlab-form.js" });
+  f.state.exec = curl((url) => (url.endsWith("/version") ? 401 : 404));
+  const { cx, settled } = dialogCx();
+  const d = new f.mod.default();
+  d.init({}, cx);
+  await settled();
+  d.kind = "self";
+  d.address.type("gitlab.acme.example", cx);
+  d.connect(cx);
+  await settled();
+  assert.match(d.error, /has no MCP server: it needs GitLab 18\.6 or later/);
+  assert.equal(f.state.files[CONFIG], undefined);
+});
+
+test("disconnecting takes GitLab out of config.json and the resolved copy, signs out, and keeps everything else", async () => {
+  const f = await fixture(undefined, [], { entry: "./gitlab-form.js" });
+  const gitlab = { server: "GitLab", name: "GitLab", tools: { listMine: {} } };
+  f.state.files[CONFIG] = JSON.stringify({ tickets: { server: "linear" }, code: gitlab, servers: { linear: { url: "https://mcp.linear.app/mcp" }, GitLab: { url: "https://gitlab.acme.example/api/v4/mcp" } } });
+  f.state.files[COPY] = JSON.stringify({ tickets: { server: "linear" }, code: gitlab });
+  const { cx, settled } = dialogCx();
+  const d = new f.mod.default();
+  d.init({}, cx);
+  await settled();
+  assert.equal(d.kind, "self");
+  assert.equal(d.address.value(), "https://gitlab.acme.example");
+  d.disconnect(cx);
+  await settled();
+  assert.deepEqual(JSON.parse(f.state.files[CONFIG]), { tickets: { server: "linear" }, servers: { linear: { url: "https://mcp.linear.app/mcp" } } });
+  assert.deepEqual(JSON.parse(f.state.files[COPY]), { tickets: { server: "linear" } });
+  assert.deepEqual(plain(f.ran), [["connector", "logout", "https://gitlab.acme.example/api/v4/mcp"]]);
+  assert.equal(f.shared.get("flow.gitlab"), null);
+  assert.deepEqual(plain(f.closed), ["o1"]);
+});
+
+test("Esc closes the GitLab dialog; Enter connects only from the person's own keyboard", async () => {
+  const f = await fixture(undefined, [], { entry: "./gitlab-form.js" });
+  f.state.exec = curl(acmeGitlab);
+  const { cx, settled } = dialogCx();
+  const d = new f.mod.default();
+  d.init({}, cx);
+  await settled();
+  assert.equal(d.key({ keystroke: "enter", key: "enter", injected: true }, cx), false, "a key from outside starts no sign-in");
+  assert.equal(d.phase, "form");
+  assert.equal(d.key({ keystroke: "escape", key: "escape", injected: true }, cx), true);
+  assert.deepEqual(plain(f.closed), ["o1"]);
 });
