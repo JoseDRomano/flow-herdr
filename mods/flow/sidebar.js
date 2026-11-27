@@ -18,7 +18,7 @@ import { SettingsLink, HerdrLinks } from "./doctor.js";
 import { openUsage, inkOn } from "./usage.js";
 import { FOLDERS, normalize as normalizeFolders, arrange as arrangeFolders, toggleFolder as toggleFolders, machineKey, machineOfKey } from "./folders.js";
 import { openFolderName } from "./folder-name.js";
-import { THREADS, kindOf, settle as settleThreads, split as splitThreads, unbridged, bridged, activity, ago, normalize as threadsOf } from "./threads.js";
+import { THREADS, kindOf, settle as settleThreads, split as splitThreads, unbridged, bridged, activity, ago, threadFolder, normalize as threadsOf } from "./threads.js";
 import { BRIDGES, remember, machineWords } from "./bridge.js";
 import { tokens, alpha, TEXT, RADIUS, Icon, Kbd, Button, openMenu, SectionHeader, StageHeading, HoverCard, Hover, Flashes, CornerCount, HubDown, dur, AgentLogo, providersOf } from "./ui.js";
 import { AgentsModel, QuestionCard, QuotaBars, StageMark, Chips, STAGES, stageColor, stageAge, hours, statusColor, UndoRow } from "./agentsui.js";
@@ -624,13 +624,15 @@ export default class Sidebar {
     return next;
   }
 
-  /** A thread's menu: its kind, rename, mark it resolved, leave it as a plain space, close it. */
+  /** A thread's menu: edit it, rename it, its kind, mark it resolved, leave it as a plain space, close it. */
   threadMenu(s, thread) {
     openMenu(
       [
+        { label: "Edit thread…", icon: "sliders-horizontal", command: `thread:edit|${s.id}` },
+        { label: "Rename…", icon: "pencil", run: ["space.rename", { id: s.id }] },
+        "separator",
         ...KINDS.map(([kind, label, icon]) => ({ label, icon, check: thread.kind === kind, command: `thread:kind|${s.id}|${kind}` })),
         "separator",
-        { label: "Rename…", icon: "pencil", run: ["space.rename", { id: s.id }] },
         { label: "Mark resolved…", icon: "circle-check", command: `thread:confirm|${s.id}` },
         { label: "Not a thread", icon: "folder-output", command: `thread:release|${s.id}` },
         "separator",
@@ -652,7 +654,7 @@ export default class Sidebar {
   /**
    * A thread as a card: its kind's tile, its title, its kind, where it works, how many panes and how long it has been
    * open, then what its agents are doing. Nothing in it is a link of its own: a click shows the thread, a drag moves
-   * it, a double-click renames it, a right-click opens its menu, and ✓ asks before resolving it.
+   * it, a double-click renames it, a right-click or ⋯ opens its menu, and ✓ asks before resolving it.
    */
   threadCard(k, { s, i, thread }, { colors, ps, byAddress, sp }) {
     const STATUS = { blocked: "needs_you", failed: "failed", working: "working", done: "done", idle: "idle" };
@@ -688,6 +690,22 @@ export default class Sidebar {
         askResolve(s.id);
       })
       .child(Icon("circle-check", { size: 15, color: k.dim }));
+    const moreButton = h_flex()
+      .id(`thread-more-${s.id}`)
+      .size(24)
+      .flex_none()
+      .items_center()
+      .justify_center()
+      .rounded(RADIUS.md)
+      .hover((st) => st.bg(k.accent))
+      .tooltip("Edit, rename, change kind…")
+      .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+      .on_mouse_up("left", (_e, cx) => {
+        cx.stop_propagation();
+        this.drag = null;
+        this.threadMenu(s, thread);
+      })
+      .child(Icon("more", { size: 15, color: k.dim }));
     return v_flex()
       .id(`thread-${s.id}`)
       .relative()
@@ -726,8 +744,12 @@ export default class Sidebar {
         }
         cx.notify();
       })
-      .on_mouse_down("right", () => this.threadMenu(s, thread))
-      .tooltip(`${kindLabel} · ${s.name}${thread.where?.folder ? ` · ${where}:${thread.where.folder}` : ""}${thread.where ? `, through ${machineWords(s.machine)}` : ""}  (double-click to rename, drag to move, right-click for more)`)
+      .on_mouse_down("right", (_e, cx) => {
+        cx.stop_propagation();
+        this.drag = null;
+        this.threadMenu(s, thread);
+      })
+      .tooltip(`${kindLabel} · ${s.name}${threadFolder(thread) ? ` · ${where}:${threadFolder(thread)}` : ""}${thread.where?.argv ? `, through ${machineWords(s.machine)}` : ""}  (double-click to rename, drag to move, right-click or ⋯ for more)`)
       .child(
         h_flex()
           .gap(10)
@@ -741,7 +763,7 @@ export default class Sidebar {
               .child(div().truncate().text_size(TEXT.base).font_semibold().text_color(k.foreground).child(s.name))
               .child(h_flex().gap(4).items_center().min_w(0).text_size(TEXT.xs).text_color(k.dim).when(Boolean(thread.where), (e) => e.child(Icon("server", { size: 10 }))).child(div().truncate().child(meta))),
           )
-          .child(resolveButton),
+          .child(h_flex().flex_none().child(moreButton).child(resolveButton)),
       )
       .when(states.length > 0, (e) =>
         e.child(

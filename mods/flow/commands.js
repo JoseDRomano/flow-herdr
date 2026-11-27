@@ -77,6 +77,7 @@ export const CATALOGUE = [
   entry("flow.recap", "Recap the agents", "sparkles", "Agents", "whose move stages summary"),
   entry("flow.usage", "Usage and limits", "gauge", "Agents", "quota limits tokens spend estimate account plan"),
   entry("flow.thread", "New thread…", "git-branch", "Agents", "fix feature bug space work new main machine"),
+  entry("flow.thread:edit", "Edit this thread…", "sliders-horizontal", "Agents", "rename name kind folder properties change"),
   entry("flow.start", "Start work…", "play", "Agents", "new agent worktree ticket pr prompt task branch"),
   entry("flow.resume", "Resume stopped agents", "play", "Agents", "restart reboot resume session"),
   entry("flow.queue", "Prompt queue", "list", "Agents", "follow-ups send later", { layouts: ["flow"] }),
@@ -488,7 +489,8 @@ const WINDOW = {
   usage: () => openUsage(),
   start: () => openStart(),
   thread: () => openThreadForm(),
-  // A thread's menus: `thread:new|<kind>` opens the dialog on that kind and `confirm|<space>` asks before resolving it;
+  // A thread's menus: `thread:new|<kind>` opens the dialog on that kind, `edit[|<space>]` opens it on that thread (the
+  // shown space's when none is named) and `confirm|<space>` asks before resolving it;
   // `kind|<space>|<kind>` changes a thread's kind or makes a space a thread, `release|<space>` leaves the space among the
   // other ones, `resolve|<space>` marks it done and closes its panes, and `forget|<space|*>` takes it off the resolved
   // list, on the person's pick only.
@@ -525,6 +527,7 @@ const KIND_NAMES = new Set(KINDS.map(([k]) => k));
 function threadCommand(arg, person) {
   const [verb, ...rest] = arg.split("|");
   if (verb === "new") return openThreadForm({ kind: KIND_NAMES.has(rest[0]) ? rest[0] : "fix" });
+  if (verb === "edit") return editThread(rest[0] || focused()?.space);
   if (verb === "confirm" && rest[0]) return askResolve(rest[0]);
   if (!person || !rest[0]) return;
   const space = spaces().find((s) => s.id === rest[0]);
@@ -536,6 +539,12 @@ function threadCommand(arg, person) {
     setShared(THREADS, resolve(shared(THREADS), space));
     run("space.close", { id: space.id, confirmed: true });
   }
+}
+
+/** Opens the dialog on the thread of a space; says so when that space isn't a thread. */
+function editThread(id) {
+  if (id && shared(THREADS)?.threads?.[id]) return openThreadForm({ edit: id });
+  notify({ title: "This space isn't a thread", body: "Make it one from its menu in the sidebar, or open a new thread.", level: "info", timeout: 4000 });
 }
 
 /** Asks before resolving a thread, saying what closes with it: a menu whose Resolve the person picks, Cancel first. */

@@ -69,12 +69,13 @@ sidebar, or **New thread…** in the palette: pick its kind, give it a title, th
 there. Under the folder field, the dialog lists that machine's folders, from its home or the path you typed: click one
 to open it and fill it in, **Up** to go back. You can also type `/full/path`, `~/path`, or a path in that machine's
 home such as `src/scope`. Each thread is a Herdr space named
-after it, always on the **main machine**, and you open its tabs and panes there. Because every thread lives on the main
-machine, any of its panes can split onto any other machine (see below), so one thread holds the shells of all the
+after it, on the machine it works on (the **main machine** unless you pick another), and you open its tabs and panes
+there. Any of its panes can still split onto any other machine (see below), so one thread holds the shells of all the
 machines the work touches.
 
-A thread on another machine still lives on the main machine: its first pane is a bridge from the main machine to that
-one, opened in the folder you gave, reached the way **Split right on…** reaches it (`flow.json`'s routes). In that
+A thread on another machine is a Herdr space on that machine, opened in the folder you gave. Its terminals are that
+machine's own, so Herdr does there what it does for any remote space: `⌃V` or `⌘V` with an image copied puts the image
+on that machine and pastes its path, so an agent there gets it, and dropped files are copied there too. In that
 thread, **Split right on…** and **Split down on…** list its machine first, and a split onto it starts in the thread's
 folder there. The sidebar shows the machine beside the thread's name.
 
@@ -128,6 +129,10 @@ the machine the pane starts from (`local` is this computer, `*` any machine with
 The pane starts in the same folder on the other machine when that folder exists there. Flow reads the file on each
 split, so a change applies at once. A bridge pane that Herdr gave a plain shell after a restart offers
 **Reconnect to <machine>** in its right-click menu, and reconnects the way it first got there.
+
+A bridge pane is a terminal on the tab's machine, so Herdr can't put a copied image on the other machine: `⌃V` reaches
+the program there, which finds no image in that machine's clipboard. To paste images into an agent on another machine,
+run it in a thread on that machine.
 
 ## What stays cockpit's
 

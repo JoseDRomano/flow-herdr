@@ -1,20 +1,19 @@
 // The dialog that opens a thread: its kind (fix, feature or bug), its title, the machine it works on and the folder
-// there, typed or picked from a list of that machine's folders. The thread is a space on the main machine (flow.json's
-// `main`, this computer by default), so its panes can reach every other machine; on another machine, its first pane is
-// a bridge there from the main machine, the way a Split right on… reaches it, in that folder. Enter opens it, Esc
-// cancels.
+// there, typed or picked from a list of that machine's folders. The thread is a Herdr space on that machine, in that
+// folder, so Herdr pastes clipboard images and drops files onto it there. Opened on a thread (`edit`), it changes that
+// thread's kind, name and folder instead; its machine stays. Enter opens or saves it, Esc cancels.
 
 import { div } from "gpui-kit";
 import { h_flex, v_flex, InputState } from "gpui-base";
 import { props, closeOverlay, openOverlay, exec, home, pickFolder, spaces, focused, shared, setShared, run } from "herdr";
 import { tokens, TEXT, RADIUS, Button, TextField, Pills, Spinner, Icon } from "./ui.js";
-import { LOCAL, ROUTES_FILE, machineWords, routeArgv, routeFor } from "./bridge.js";
-import { listMachines, routesConfig, knows } from "./termmenu.js";
-import { THREADS, KINDS, mainMachine, folderPath, problem, spaceArgs, begin, targetChoices, LIST_SCRIPT, parseListing, childOf, parentOf } from "./threads.js";
+import { LOCAL, ROUTES_FILE, machineWords } from "./bridge.js";
+import { listMachines, routesConfig } from "./termmenu.js";
+import { THREADS, KINDS, mainMachine, folderPath, problem, spaceArgs, begin, edit, threadFolder, normalize as threadsOf, targetChoices, LIST_SCRIPT, parseListing, childOf, parentOf } from "./threads.js";
 
-/** Opens the dialog, on `kind` when given. */
-export function openThreadForm({ kind = "fix" } = {}) {
-  openOverlay({ mod: "flow", kind: "dialog", width: 520, props: { app: "thread-form", kind } });
+/** Opens the dialog for a new thread, on `kind` when given, or on the thread of the space `edit` to change it. */
+export function openThreadForm({ kind = "fix", edit = null } = {}) {
+  openOverlay({ mod: "flow", kind: "dialog", width: 520, props: { app: "thread-form", kind, ...(edit ? { edit } : {}) } });
 }
 
 /** `exec`'s options to run on a machine key (`local`: this computer). */
@@ -48,6 +47,17 @@ export default class ThreadForm {
     this.title = InputState.new({ placeholder: "What it is, like “Login loops on SSO”" });
     this.folder = InputState.new({ placeholder: "Folder: /full/path, ~/path or a path in its home" });
     for (const input of [this.title, this.folder]) input.on("submit", (_e, cx) => this.save(cx));
+    // The thread being changed: its space's id, and the folder it had, which saving leaves alone when it is unchanged.
+    const space = p.edit ? spaces().find((s) => s.id === p.edit) : null;
+    const thread = space ? threadsOf(shared(THREADS)).threads[space.id] : null;
+    this.editing = p.edit ? { id: p.edit, found: Boolean(thread), folder: threadFolder(thread) ?? "" } : null;
+    if (thread) {
+      this.kind = thread.kind;
+      this.title.set_value(space.name || thread.title);
+      this.target = thread.where ? thread.where.machine : (space.machine ?? LOCAL);
+      this.navigating = this.editing.folder;
+      this.folder.set_value(this.editing.folder);
+    } else if (this.editing) this.error = "That thread isn't open any more.";
     this.title.on("change", (_e, cx) => {
       this.error = "";
       cx.notify();
@@ -70,6 +80,12 @@ export default class ThreadForm {
     cx.spawn(async (cx) => {
       this.config = await routesConfig();
       this.main = mainMachine(this.config);
+      if (this.editing) {
+        this.loading = false;
+        if (this.editing.found) this.browse(cx, this.folder.value().trim() || null);
+        else cx.notify();
+        return;
+      }
       this.target = this.mainKey();
       this.machines = (await listMachines()).map((m) => m.name);
       this.loading = false;
@@ -131,7 +147,7 @@ export default class ThreadForm {
   }
 
   ready() {
-    return !this.loading && !this.busy && Boolean(this.title.value().trim());
+    return !this.loading && !this.busy && (!this.editing || this.editing.found) && Boolean(this.title.value().trim());
   }
 
   pick(target, cx) {
@@ -155,7 +171,7 @@ export default class ThreadForm {
     cx.notify();
     cx.spawn(async (cx) => {
       try {
-        await this.open();
+        await (this.editing ? this.change() : this.open());
       } catch (e) {
         this.error = e?.message ?? String(e);
       }
@@ -172,33 +188,38 @@ export default class ThreadForm {
     return r.stdout.trim();
   }
 
-  /** How the main machine reaches the thread's machine, as a split from there would: a route, or an error saying what to add. */
-  async route() {
-    let route = routeFor(this.config, this.target, this.main);
-    if (!route && this.target !== LOCAL && this.main && (await knows(this.main, this.target))) route = { kind: "hc", name: this.target };
-    if (!route || route.kind === "split") {
-      throw new Error(`${machineWords(this.main)} has no way to ${machineWords(this.target)} yet. Add a route in ${ROUTES_FILE}, or from a terminal on ${machineWords(this.main)}: Split right on…, then How ${machineWords(this.main)} reaches the others.`);
-    }
-    return route;
-  }
-
-  async open() {
+  /** The form's kind, title and folder (a full path), checked: the folder must be one on the thread's machine. */
+  async checked() {
     const typed = this.folder.value().trim();
     const folder = typed && !typed.startsWith("/") ? folderPath(typed, await this.homeThere()) : typed;
     const title = this.title.value().trim();
     const wrong = problem({ kind: this.kind, title, folder });
     if (wrong) throw new Error(wrong);
-    if (folder) {
-      // `test -d` says 1 for a folder that isn't there; a machine this computer can't ask is left to the bridge.
+    if (folder && folder !== this.editing?.folder) {
+      // `test -d` says 1 for a folder that isn't there; a machine this computer can't ask is left to Herdr.
       const r = await exec("test", ["-d", folder], { ...on(this.target), timeout: 8000 }).catch(() => ({ code: -1 }));
       if (r.code === 1) throw new Error(`${folder} isn't a folder on ${machineWords(this.target)}.`);
     }
-    const away = this.away();
-    const argv = away ? routeArgv(await this.route(), folder || null) : null;
-    const where = away ? { machine: this.target, folder: folder || null, argv } : null;
+    return { kind: this.kind, title, folder };
+  }
+
+  /** Saves the thread being changed: its kind and folder in the threads, its name as its space's. */
+  async change() {
+    const { kind, title, folder } = await this.checked();
+    const space = spaces().find((s) => s.id === this.editing.id);
+    if (!space) throw new Error("That thread isn't open any more.");
+    setShared(THREADS, edit(shared(THREADS), space.id, { kind, title, folder }));
+    if (title !== space.name) run("space.rename", { id: space.id, name: title });
+    this.close();
+  }
+
+  async open() {
+    const { title, folder } = await this.checked();
+    const where = this.away() ? { machine: this.target, folder: folder || null } : null;
+    const machine = this.target === LOCAL ? null : this.target;
     const before = spaces().map((s) => s.id);
-    setShared(THREADS, begin(shared(THREADS), { kind: this.kind, title, main: this.main, before, where }));
-    run("space.new", spaceArgs({ title, folder: away ? "" : folder, main: this.main, argv }));
+    setShared(THREADS, begin(shared(THREADS), { kind: this.kind, title, machine, before, where }));
+    run("space.new", spaceArgs({ title, folder, machine }));
     this.close();
   }
 
@@ -273,9 +294,11 @@ export default class ThreadForm {
     const label = (text) => div().text_size(TEXT.xs).font_medium().text_color(k.mutedFg).child(text);
     const main = this.loading ? "…" : machineWords(this.main);
     const there = this.loading ? "…" : machineWords(this.target);
-    const note = this.away()
-      ? `It opens on the main machine, ${main}, and reaches ${there} from there, the way Split right on… does. A split onto ${there} in this thread starts in this folder.`
-      : `Threads open on the main machine, ${main}, so any pane of one can split onto another machine (right-click a terminal, Split right on…). Set "main" in ${ROUTES_FILE} to change it.`;
+    const note = this.editing
+      ? `A split onto ${there} in this thread starts in this folder; empty, in the folder of the pane split. The thread stays on ${there}.`
+      : this.away()
+      ? `It opens on ${there}, in this folder, so pasted images and dropped files land there. A split onto ${there} in this thread starts in this folder.`
+      : `Threads open on the main machine, ${main}, unless you pick another; any pane can split onto another machine (right-click a terminal, Split right on…). Set "main" in ${ROUTES_FILE} to change it.`;
     return v_flex()
       .id("thread-form")
       .track_focus(this.handle)
@@ -296,7 +319,7 @@ export default class ThreadForm {
           .items_center()
           .gap(8)
           .child(Icon("git-branch", { size: 16, color: k.mutedFg }))
-          .child(div().flex_1().text_size(TEXT.lg).font_semibold().child("New thread"))
+          .child(div().flex_1().text_size(TEXT.lg).font_semibold().child(this.editing ? "Edit thread" : "New thread"))
           .child(div().text_size(TEXT.xs).text_color(k.dim).child("Esc")),
       )
       .child(
@@ -311,7 +334,10 @@ export default class ThreadForm {
           ),
       )
       .child(v_flex().gap(6).child(label("Title")).child(h_flex().child(TextField(this.title))))
-      .when(!this.loading, (e) =>
+      .when(!this.loading && Boolean(this.editing), (e) =>
+        e.child(v_flex().gap(6).child(label("Machine")).child(h_flex().gap(6).items_center().text_size(TEXT.sm).child(Icon(this.target === LOCAL ? "terminal" : "server", { size: 13, color: k.mutedFg })).child(there))),
+      )
+      .when(!this.loading && !this.editing, (e) =>
         e.child(
           v_flex()
             .gap(6)
@@ -339,9 +365,9 @@ export default class ThreadForm {
           .gap(8)
           .items_center()
           .justify_end()
-          .when(this.busy, (e) => e.child(Spinner({ size: 14, color: k.mutedFg })).child(div().text_size(TEXT.xs).text_color(k.dim).child("Opening…")))
+          .when(this.busy, (e) => e.child(Spinner({ size: 14, color: k.mutedFg })).child(div().text_size(TEXT.xs).text_color(k.dim).child(this.editing ? "Saving…" : "Opening…")))
           .child(Button("thread-form-cancel", { label: "Cancel", variant: "outline", onClick: () => this.close() }))
-          .child(Button("thread-form-save", { label: "Open thread", disabled: !this.ready(), onClick: (_e, cx) => this.save(cx) })),
+          .child(Button("thread-form-save", { label: this.editing ? "Save" : "Open thread", disabled: !this.ready(), onClick: (_e, cx) => this.save(cx) })),
       );
   }
 }

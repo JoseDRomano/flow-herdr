@@ -1,14 +1,17 @@
-// Threads: a fix, a feature or a bug being worked on, each a space on the main machine (flow.json's `main`, this
-// computer by default), so every pane of it can reach any other machine as a bridge. A thread can work on another
-// machine (`where`): its first pane is a bridge there from the main machine, in its folder there, and a split onto that
-// machine starts in that folder too. The sidebar lists threads in place of spaces. Pure helpers only: the dialog
-// (thread-form.js), the sidebar and the splits (termmenu.js) run them in Herdr.
+// Threads: a fix, a feature or a bug being worked on, each a space on the machine it works on (the main machine,
+// flow.json's `main`, this computer by default). A thread on another machine (`where`) is a Herdr space there, in its
+// folder there, so Herdr pastes images and drops files onto that machine; a split onto that machine starts in that folder
+// too. A thread whose `where` has an `argv` lives on the main machine instead, its first pane a bridge there. The sidebar
+// lists threads in place of spaces. Pure helpers only: the dialog (thread-form.js), the sidebar and the splits
+// (termmenu.js) run them in Herdr.
 
 /**
- * The shared-state key holding the threads: `{ threads: { [space id]: { kind, title, machine, at, where } }, pending,
- * resolved }`. `machine` is the space's (the main machine's, null for this computer); `where` is `{ machine, folder,
- * argv, pane }` when the thread works on another machine (`local` for this computer), else null. `resolved` lists the
- * threads marked done, newest first, whose spaces were closed: `[{ id, kind, title, where, at, resolvedAt }]`.
+ * The shared-state key holding the threads: `{ threads: { [space id]: { kind, title, machine, at, where, folder? } },
+ * pending, resolved }`. `machine` is the space's (null for this computer); `where` is `{ machine, folder, argv, pane }`
+ * when the thread works on a machine other than the main one (`local` for this computer), else null; `argv` and `pane`
+ * only for a bridge thread. `folder`, kept only when set, is the folder of a thread without `where` on its own machine.
+ * `resolved` lists the threads marked done, newest first, whose spaces were closed:
+ * `[{ id, kind, title, where, at, resolvedAt }]`.
  */
 export const THREADS = "flow.threads";
 
@@ -43,13 +46,17 @@ export function whereOf(w) {
   return { machine: w.machine, folder: typeof w.folder === "string" && w.folder ? w.folder : null, argv, pane: typeof w.pane === "string" && w.pane ? w.pane : null };
 }
 
+/** A folder as kept: a full path, else null. */
+const fullPath = (f) => (typeof f === "string" && f.startsWith("/") ? f : null);
+
 /** The store as kept, cleaned: threads with a known kind and a title, pending ones well formed. */
 export function normalize(stored) {
   const threads = {};
   for (const [id, t] of Object.entries(stored?.threads ?? {})) {
     if (!id || !t || typeof t.title !== "string" || !t.title.trim()) continue;
     const machine = typeof t.machine === "string" && t.machine ? t.machine : null;
-    threads[id] = { kind: KIND_SET.has(t.kind) ? t.kind : "fix", title: t.title.trim(), machine, at: Number(t.at) || 0, where: whereOf(t.where) };
+    const folder = fullPath(t.folder);
+    threads[id] = { kind: KIND_SET.has(t.kind) ? t.kind : "fix", title: t.title.trim(), machine, at: Number(t.at) || 0, where: whereOf(t.where), ...(folder ? { folder } : {}) };
   }
   const pending = (Array.isArray(stored?.pending) ? stored.pending : []).filter(
     (p) => p && typeof p.title === "string" && p.title.trim() && KIND_SET.has(p.kind) && Array.isArray(p.before),
@@ -89,22 +96,18 @@ export function problem({ kind, title, folder }) {
   return null;
 }
 
-/**
- * The `space.new` arguments that open a thread on `main` (null: this computer): in `folder` there, or, for a thread on
- * another machine, running `argv`, the bridge that reaches it from the main machine.
- */
-export function spaceArgs({ title, folder = "", main = null, argv = null }) {
-  if (argv) return { name: title.trim(), machine: main ?? "", focus: true, argv };
-  return { name: title.trim(), machine: main ?? "", focus: true, ...(folder ? { folder } : {}) };
+/** The `space.new` arguments that open a thread on `machine` (null or `local`: this computer), in `folder` there. */
+export function spaceArgs({ title, folder = "", machine = null }) {
+  return { name: title.trim(), machine: !machine || machine === "local" ? "" : machine, focus: true, ...(folder ? { folder } : {}) };
 }
 
 /**
  * The store with a thread waiting for its space: Herdr's `space.new` doesn't say which space it made, so the thread
  * takes the first new space on its machine with its name, among those not in `before` (the space ids when it started).
  */
-export function begin(stored, { kind, title, main = null, before = [], at = Date.now(), where = null }) {
+export function begin(stored, { kind, title, machine = null, before = [], at = Date.now(), where = null }) {
   const s = normalize(stored);
-  return { ...s, pending: [...s.pending, { kind, title: title.trim(), machine: main, before, at, where: whereOf(where) }] };
+  return { ...s, pending: [...s.pending, { kind, title: title.trim(), machine, before, at, where: whereOf(where) }] };
 }
 
 /**
@@ -141,7 +144,30 @@ export function mark(stored, space, kind, at = Date.now()) {
   const s = normalize(stored);
   if (!space?.id || !KIND_SET.has(kind)) return s;
   const was = s.threads[space.id];
-  return { ...s, threads: { ...s.threads, [space.id]: { kind, title: was?.title ?? space.name, machine: space.machine ?? null, at: was?.at ?? at, where: was?.where ?? null } } };
+  return { ...s, threads: { ...s.threads, [space.id]: { ...was, kind, title: was?.title ?? space.name, machine: space.machine ?? null, at: was?.at ?? at, where: was?.where ?? null } } };
+}
+
+/** The folder a thread works in on its machine: its `where`'s, else its own; null when it names none. */
+export const threadFolder = (t) => (t?.where ? t.where.folder : t?.folder) ?? null;
+
+/**
+ * The store with a thread's kind, title and folder changed, as the edit dialog saves them: the folder goes in its
+ * `where` when it has one, else on the thread itself; an empty folder clears it. A kind it doesn't know, or an empty
+ * title, leaves that one as it was.
+ */
+export function edit(stored, id, { kind, title, folder = null }) {
+  const s = normalize(stored);
+  const was = s.threads[id];
+  if (!was) return s;
+  const { folder: _old, ...t } = was;
+  const f = fullPath(folder);
+  const next = {
+    ...t,
+    kind: KIND_SET.has(kind) ? kind : t.kind,
+    title: String(title ?? "").trim() || t.title,
+    ...(t.where ? { where: { ...t.where, folder: f } } : f ? { folder: f } : {}),
+  };
+  return { ...s, threads: { ...s.threads, [id]: next } };
 }
 
 /** The store without the thread of a space: the space stays, among the other spaces. */
@@ -167,14 +193,14 @@ export function split(stored, spaces) {
 }
 
 /**
- * The first pane of each thread on another machine that isn't known as its bridge yet: `[{ id, pane, where }]`, `panes`
- * as Herdr lists them. That pane is the one `space.new` opened running the bridge, the first of its space's first tab.
+ * The first pane of each bridge thread that isn't known as its bridge yet: `[{ id, pane, where }]`, `panes` as Herdr
+ * lists them. That pane is the one `space.new` opened running the bridge, the first of its space's first tab.
  */
 export function unbridged(stored, spaces, panes) {
   const { threads } = normalize(stored);
   const out = [];
   for (const [id, t] of Object.entries(threads)) {
-    if (!t.where || t.where.pane) continue;
+    if (!t.where?.argv || t.where.pane) continue;
     const tab = spaces.find((sp) => sp.id === id)?.tabs?.[0]?.id;
     const pane = tab ? panes.find((p) => p.tab === tab && p.pane) : null;
     if (pane) out.push({ id, pane: pane.pane, where: t.where });
@@ -192,11 +218,13 @@ export function bridged(stored, id, pane) {
 
 /**
  * The folder a split onto `target` (a machine's name, or `local`) starts in, for a pane of the thread of `spaceId`: the
- * thread's folder when it works on that machine, else null.
+ * thread's folder when it works on that machine (its `where`'s, else its space's own machine), else null.
  */
 export function folderOn(stored, spaceId, target) {
-  const where = spaceId ? normalize(stored).threads[spaceId]?.where : null;
-  return where && where.machine === target ? where.folder : null;
+  const t = spaceId ? normalize(stored).threads[spaceId] : null;
+  if (!t) return null;
+  const machine = t.where ? t.where.machine : (t.machine ?? "local");
+  return machine === target ? threadFolder(t) : null;
 }
 
 /**

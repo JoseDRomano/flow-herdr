@@ -41,13 +41,14 @@ test("the form needs a kind and a title, and a folder as a full path", () => {
   assert.equal(folderPath("", "/home/maya"), "");
 });
 
-test("a thread opens as a named, shown space on the main machine", () => {
-  assert.deepEqual(spaceArgs({ title: " Export to CSV ", main: null }), { name: "Export to CSV", machine: "", focus: true });
-  assert.deepEqual(spaceArgs({ title: "ENG-412", folder: "/srv/acme", main: "acme-dev" }), { name: "ENG-412", machine: "acme-dev", focus: true, folder: "/srv/acme" });
+test("a thread opens as a named, shown space on its machine", () => {
+  assert.deepEqual(spaceArgs({ title: " Export to CSV ", machine: null }), { name: "Export to CSV", machine: "", focus: true });
+  assert.deepEqual(spaceArgs({ title: "Export to CSV", machine: "local" }), { name: "Export to CSV", machine: "", focus: true });
+  assert.deepEqual(spaceArgs({ title: "ENG-412", folder: "/srv/acme", machine: "acme-dev" }), { name: "ENG-412", machine: "acme-dev", focus: true, folder: "/srv/acme" });
 });
 
 test("a pending thread takes the first new space with its name on its machine", () => {
-  let store = begin({}, { kind: "bug", title: "api", main: null, before: ["s1"], at: 1000 });
+  let store = begin({}, { kind: "bug", title: "api", machine: null, before: ["s1"], at: 1000 });
   assert.equal(store.pending.length, 1);
   // The space that was there already, and one with the name on another machine, aren't it.
   const remote = space("acme-dev/s9", "api", "acme-dev");
@@ -58,7 +59,7 @@ test("a pending thread takes the first new space with its name on its machine", 
 });
 
 test("a thread on a remote main machine is found there", () => {
-  const store = settle(begin({}, { kind: "feature", title: "ENG-412", main: "acme-dev", before: [], at: 1 }), [space("acme-dev/s4", "ENG-412", "acme-dev")], { now: 2 });
+  const store = settle(begin({}, { kind: "feature", title: "ENG-412", machine: "acme-dev", before: [], at: 1 }), [space("acme-dev/s4", "ENG-412", "acme-dev")], { now: 2 });
   assert.deepEqual(store.threads["acme-dev/s4"], { kind: "feature", title: "ENG-412", machine: "acme-dev", at: 1, where: null });
 });
 
@@ -102,14 +103,18 @@ test("a thread works on the main machine first, then this computer, then the oth
   assert.deepEqual(targetChoices("acme-dev", ["acme-dev", "acme-db"]), [["acme-dev", "acme-dev · main"], ["local", "This computer"], ["acme-db", "acme-db"]]);
 });
 
-test("a thread on another machine opens on the main machine running the bridge there, never in a folder of its own", () => {
-  const argv = ["sh", "-c", "…", "flow-bridge", "acme-build", "/srv/acme/scope"];
-  assert.deepEqual(spaceArgs({ title: "Scope", folder: "/srv/acme/scope", main: null, argv }), { name: "Scope", machine: "", focus: true, argv });
+test("a thread on another machine opens as a space there, in its folder there, and has no bridge", () => {
+  assert.deepEqual(spaceArgs({ title: "Scope", folder: "/srv/acme/scope", machine: "acme-build" }), { name: "Scope", machine: "acme-build", focus: true, folder: "/srv/acme/scope" });
+  const where = { machine: "acme-build", folder: "/srv/acme/scope" };
+  const store = settle(begin({}, { kind: "feature", title: "Scope", machine: "acme-build", before: [], at: 1, where }), [{ ...space("acme-build/s5", "Scope", "acme-build"), tabs: [{ id: "acme-build/t1" }] }], { now: 2 });
+  assert.deepEqual(store.threads["acme-build/s5"], { kind: "feature", title: "Scope", machine: "acme-build", at: 1, where: { ...where, argv: null, pane: null } });
+  assert.deepEqual(unbridged(store, [{ ...space("acme-build/s5", "Scope", "acme-build"), tabs: [{ id: "acme-build/t1" }] }], [{ pane: "acme-build/p1", tab: "acme-build/t1" }]), [], "its panes are Herdr's own there");
+  assert.equal(folderOn(store, "acme-build/s5", "acme-build"), "/srv/acme/scope", "a split onto its machine starts in its folder");
 });
 
-test("a thread on another machine keeps where it works, and its first pane becomes its bridge once", () => {
+test("a bridge thread on the main machine keeps where it works, and its first pane becomes its bridge once", () => {
   const where = { machine: "acme-build", folder: "/srv/acme/scope", argv: ["sh", "-c", "…"] };
-  let store = settle(begin({}, { kind: "feature", title: "Scope", main: null, before: [], at: 1, where }), [{ ...space("s5", "Scope"), tabs: [{ id: "t1" }] }], { now: 2 });
+  let store = settle(begin({}, { kind: "feature", title: "Scope", machine: null, before: [], at: 1, where }), [{ ...space("s5", "Scope"), tabs: [{ id: "t1" }] }], { now: 2 });
   assert.deepEqual(store.threads.s5.where, { ...where, pane: null });
   const spaces = [{ ...space("s5", "Scope"), tabs: [{ id: "t1" }, { id: "t2" }] }];
   const panes = [{ pane: "p9", tab: "t2" }, { pane: "p1", tab: "t1" }, { pane: "p2", tab: "t1" }];
