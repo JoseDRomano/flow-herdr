@@ -18,9 +18,9 @@ export const WEB = "web";
 /** How wide the panel opens for a page, when it is narrower. */
 const WIDTH = 640;
 
-/** What lies between the slot and the window's right and bottom edges, by layout: padding, the panel's border, the activity bar, the status bar. */
+/** What lies between the slot and the window's right and bottom edges, by layout: padding, the activity bar, the status bar. */
 export const INSETS = {
-  flow: { right: 10 + 1 + 44, bottom: 34 + 10 + 1 },
+  flow: { right: 12 + 44, bottom: 34 + 12 },
 };
 
 /** The insets a pointer over the slot measured, by layout: they correct the table above to the pixel. */
@@ -68,10 +68,10 @@ export function covered(now = Date.now(), copies = globalThis.flowCopies ?? []) 
   return false;
 }
 
-/** The theme's colors the browser's toolbar takes, so it reads as part of the window. */
+/** The theme's colors the browser's toolbar takes, so it reads as part of the panel it sits in. */
 export function toolbarTheme(k) {
   const hex = (color) => (/^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(String(color)) ? String(color) : undefined);
-  return { bg: hex(k.chrome), panel: hex(k.background), fg: hex(k.foreground), muted: hex(k.mutedFg), line: hex(k.border), accent: hex(k.ring), hover: hex(k.accent) };
+  return { bg: hex(k.background), panel: hex(k.background), fg: hex(k.foreground), muted: hex(k.mutedFg), line: hex(k.border), accent: hex(k.ring), hover: hex(k.accent) };
 }
 
 /**

@@ -95,7 +95,7 @@ test("the layout has the slot in its side panel", async () => {
 test("the slot is placed from the window's far edges, by layout", async () => {
   const { web } = await load("flow");
   const size = { width: 594, height: 726 };
-  assert.deepEqual(plain(web.slotRect({ width: 1280, height: 820 }, size, web.INSETS.flow)), { x: 631, y: 49, width: 594, height: 726 });
+  assert.deepEqual(plain(web.slotRect({ width: 1280, height: 820 }, size, web.INSETS.flow)), { x: 630, y: 48, width: 594, height: 726 });
   assert.equal(web.slotRect({ width: 1280, height: 820 }, null, web.INSETS.flow), null, "no size yet, no slot");
   assert.deepEqual(plain(web.insetsOf({ width: 1280, height: 820 }, { x: 631, y: 51, width: 594, height: 726 })), { right: 55, bottom: 43 }, "a pointer over it measures them");
 });
@@ -162,7 +162,7 @@ test("a popup of cockpit's covers the slot while it lives", async () => {
 test("the toolbar takes the theme's colours that are plain hex", async () => {
   const { web } = await load("flow");
   const theme = web.toolbarTheme({ chrome: "#16171b", background: "#101114", foreground: "#e8e8e6", mutedFg: "#8a8b90", border: "#2a2b30", ring: "#a3b3e0", accent: "rgba(255,255,255,0.06)" });
-  assert.deepEqual(plain(theme), { bg: "#16171b", panel: "#101114", fg: "#e8e8e6", muted: "#8a8b90", line: "#2a2b30", accent: "#a3b3e0" });
+  assert.deepEqual(plain(theme), { bg: "#101114", panel: "#101114", fg: "#e8e8e6", muted: "#8a8b90", line: "#2a2b30", accent: "#a3b3e0" });
 });
 
 test("the slot is told once per change, one request at a time, with the session in front", async () => {
@@ -180,7 +180,7 @@ test("the slot is told once per change, one request at a time, with the session 
   web.reportSlot();
   assert.equal(sent.length, 1, "nothing changed, nothing sent");
   assert.equal(sent[0][1], "slot");
-  assert.deepEqual(plain(sent[0][2].rect), { x: 631, y: 49, width: 594, height: 726 });
+  assert.deepEqual(plain(sent[0][2].rect), { x: 630, y: 48, width: 594, height: 726 });
   assert.deepEqual([sent[0][2].visible, sent[0][2].terminal, sent[0][2].seq], [true, "t3", 1]);
   state.set("flow.web.size", { width: 594, height: 700 });
   web.reportSlot();

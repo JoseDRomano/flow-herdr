@@ -198,7 +198,7 @@ export default class Files {
       .id("flow-files")
       .size_full()
       .min_h(0)
-      .bg(k.canvas)
+      .bg(k.background)
       .text_color(k.foreground)
       .child(
         h_flex()

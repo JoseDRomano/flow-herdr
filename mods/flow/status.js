@@ -12,6 +12,7 @@ import { fleet, counts } from "./fleet.js";
 import { show, agentInView } from "./screens.js";
 import { runCommand, togglePanel, hint, lend, settle } from "./commands.js";
 import { tokens, TEXT, RADIUS, Icon, Spinner, Mono, openMenu } from "./ui.js";
+import { followSky } from "./sky.js";
 
 // The agents, Home and queue views, followed once per window whichever copies ask (feed.js).
 const following = sharing(hub.subscribe);
@@ -85,6 +86,7 @@ export default class Status {
     const list = fleet(this.rows, this.home);
     const board = counts(list, this.home);
     const count = (stage) => board[stage];
+    followSky(board.needs);
     const me = this.current(list);
     const queued = this.queue?.count ?? 0;
     const lost = this.home?.lost?.length ?? 0;
@@ -179,9 +181,6 @@ export default class Status {
       .px(12)
       .gap(6)
       .items_center()
-      .bg(k.chrome)
-      .border_t_1()
-      .border_color(k.border)
       .children(left)
       .child(div().flex_1().min_w(8))
       .children(right);

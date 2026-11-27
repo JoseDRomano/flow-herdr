@@ -72,7 +72,6 @@ export default class Activity {
       .gap(2)
       .border_l_1()
       .border_color(k.border)
-      .bg(k.chrome)
       .children(ITEMS.filter((i) => present(i, layout())).map(button))
       .child(div().flex_1())
       .child(

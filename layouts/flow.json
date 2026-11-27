@@ -3,8 +3,8 @@
   "type": "column",
   "titlebar": "none",
   "traffic_lights": [16, 18],
-  "background": "canvas",
-  "theme": { "light": "flow-light", "dark": "flow" },
+  "background": { "gradient": ["chrome", "canvas"], "angle": 180 },
+  "theme": { "light": "flow-mist-light", "dark": "flow-mist" },
   "font": "Geist Mono",
   "font_size": 14,
   "ui_font": "Geist",
@@ -20,7 +20,6 @@
       "id": "flowbar",
       "type": "row",
       "size": { "px": 52 },
-      "background": "chrome",
       "resizable": false,
       "children": [
         { "id": "brand", "type": "block", "size": { "px": 256 }, "window_drag": true, "content": { "mod": "workspace-chrome" } },
@@ -39,25 +38,23 @@
           "size": { "px": 256 },
           "min": 44,
           "max": 480,
-          "background": "chrome",
           "resizable": false,
           "children": [
-            { "id": "flow-sidebar", "type": "block", "size": { "weight": 1 }, "min": 120, "content": { "mod": "flow", "props": { "app": "sidebar" } } },
-            { "id": "sidebar-footer", "type": "block", "size": { "px": 69 }, "content": { "mod": "workspace-chrome", "props": { "footer": true } } }
+            { "id": "flow-sidebar", "type": "block", "size": { "weight": 1 }, "min": 120, "content": { "mod": "flow", "props": { "app": "sidebar" } } }
           ]
         },
         {
           "id": "center",
           "type": "stack",
           "active": "home",
-          "padding": 10,
+          "padding": 12,
           "children": [
             {
               "id": "home",
               "type": "row",
-              "gap": 10,
+              "gap": 12,
               "children": [
-                { "id": "home-board", "type": "block", "content": { "mod": "flow", "props": { "app": "home" } }, "radius": 14, "background": "background", "shadow": "md" },
+                { "id": "home-board", "type": "block", "content": { "mod": "flow", "props": { "app": "home" } }, "radius": 16, "background": "background", "shadow": "lg" },
                 {
                   "id": "home-agent",
                   "type": "column",
@@ -69,9 +66,9 @@
                     {
                       "id": "home-agent-card",
                       "type": "column",
-                      "radius": 14,
+                      "radius": 16,
                       "background": "background",
-                      "shadow": "md",
+                      "shadow": "lg",
                       "resizable": false,
                       "children": [
                         { "id": "home-agent-head", "type": "block", "size": { "px": 34 }, "content": { "mod": "flow", "props": { "app": "agent-head", "place": "home" } } },
@@ -85,7 +82,7 @@
             {
               "id": "work",
               "type": "row",
-              "gap": 10,
+              "gap": 12,
               "children": [
                 {
                   "id": "view",
@@ -98,12 +95,11 @@
                       "content": {
                         "tab": "active",
                         "pane": {
-                          "gap": 10,
-                          "radius": 14,
+                          "gap": 12,
+                          "radius": 16,
                           "background": "background",
                           "lone": true,
-                          "veil": 0.25,
-                          "border": { "width": 1, "color": "border" },
+                          "veil": 0.3,
                           "focus": { "width": 1, "color": "accent" },
                           "header": { "content": { "mod": "flow", "props": { "app": "pane" } }, "height": 30, "position": "top", "reveal": "always" }
                         }
@@ -112,9 +108,9 @@
                     {
                       "id": "agent",
                       "type": "column",
-                      "radius": 14,
+                      "radius": 16,
                       "background": "background",
-                      "shadow": "md",
+                      "shadow": "lg",
                       "resizable": false,
                       "children": [
                         { "id": "agent-head", "type": "block", "size": { "px": 34 }, "content": { "mod": "flow", "props": { "app": "agent-head", "place": "work" } } },
@@ -130,10 +126,9 @@
                   "size": { "px": 440 },
                   "min": 280,
                   "max": 900,
-                  "radius": 14,
-                  "border": { "width": 1, "color": "border" },
+                  "radius": 16,
                   "background": "background",
-                  "shadow": "md",
+                  "shadow": "lg",
                   "resizable": false,
                   "children": [
                     {
@@ -154,17 +149,17 @@
                 }
               ]
             },
-            { "id": "inbox", "type": "block", "content": { "mod": "flow", "props": { "app": "inbox" } }, "radius": 14, "background": "background", "shadow": "md" },
-            { "id": "runbook", "type": "block", "content": { "mod": "flow", "props": { "app": "runbook" } }, "radius": 14, "background": "background", "shadow": "md" },
-            { "id": "todo", "type": "block", "content": { "mod": "flow", "props": { "app": "todo" } }, "radius": 14, "background": "background", "shadow": "md" },
-            { "id": "meetings", "type": "block", "content": { "mod": "flow", "props": { "app": "meetings" } }, "radius": 14, "background": "background", "shadow": "md" },
-            { "id": "monitor", "type": "block", "content": { "mod": "flow", "props": { "app": "monitor" } }, "radius": 14, "background": "background", "shadow": "md" },
-            { "id": "routines", "type": "block", "content": { "mod": "flow", "props": { "app": "routines" } }, "radius": 14, "background": "background", "shadow": "md" },
-            { "id": "mail", "type": "block", "content": { "mod": "flow", "props": { "app": "mail" } }, "radius": 14, "background": "background", "shadow": "md" }
+            { "id": "inbox", "type": "block", "content": { "mod": "flow", "props": { "app": "inbox" } }, "radius": 16, "background": "background", "shadow": "lg" },
+            { "id": "runbook", "type": "block", "content": { "mod": "flow", "props": { "app": "runbook" } }, "radius": 16, "background": "background", "shadow": "lg" },
+            { "id": "todo", "type": "block", "content": { "mod": "flow", "props": { "app": "todo" } }, "radius": 16, "background": "background", "shadow": "lg" },
+            { "id": "meetings", "type": "block", "content": { "mod": "flow", "props": { "app": "meetings" } }, "radius": 16, "background": "background", "shadow": "lg" },
+            { "id": "monitor", "type": "block", "content": { "mod": "flow", "props": { "app": "monitor" } }, "radius": 16, "background": "background", "shadow": "lg" },
+            { "id": "routines", "type": "block", "content": { "mod": "flow", "props": { "app": "routines" } }, "radius": 16, "background": "background", "shadow": "lg" },
+            { "id": "mail", "type": "block", "content": { "mod": "flow", "props": { "app": "mail" } }, "radius": 16, "background": "background", "shadow": "lg" }
           ]
         }
       ]
     },
-    { "id": "status", "type": "block", "size": { "px": 34 }, "background": "chrome", "content": { "mod": "flow", "props": { "app": "status" } } }
+    { "id": "status", "type": "block", "size": { "px": 34 }, "content": { "mod": "flow", "props": { "app": "status" } } }
   ]
 }

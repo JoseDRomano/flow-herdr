@@ -14,8 +14,8 @@ import { option } from "./config.js";
 import { show, showWork, screens } from "./screens.js";
 import { togglePalette, openRecap, hint, keyFor, keyText, lend, askResolve } from "./commands.js";
 import { UpdateTag, pending as pendingUpdate } from "./update.js";
-import { SettingsLink } from "./doctor.js";
-import { openUsage } from "./usage.js";
+import { SettingsLink, HerdrLinks } from "./doctor.js";
+import { openUsage, inkOn } from "./usage.js";
 import { FOLDERS, normalize as normalizeFolders, arrange as arrangeFolders, toggleFolder as toggleFolders, machineKey, machineOfKey } from "./folders.js";
 import { openFolderName } from "./folder-name.js";
 import { THREADS, kindOf, settle as settleThreads, split as splitThreads, unbridged, bridged, activity, ago, normalize as threadsOf } from "./threads.js";
@@ -313,7 +313,8 @@ export default class Sidebar {
           .when(!rail, (e) => e.children([UndoRow("band-undo", model), ...this.bandRows(k, band), ...(model.down && !rows.length ? this.agentRows(k, rows, band, cx) : []), ...this.spaceRows(k, cx)].filter(Boolean))),
       )
       .when(Boolean(this.update), (e) => e.child(UpdateTag("update-tag", this.update, { rail })))
-      .child(div().mt(4).child(SettingsLink("sidebar-settings", { rail })));
+      .child(div().mt(4).child(SettingsLink("sidebar-settings", { rail })))
+      .child(HerdrLinks("sidebar-herdr", { rail }));
   }
 
   /** The pinned apps as a row of tiles (label and key in the tooltip, count as a badge): the list below keeps the room. */
@@ -731,7 +732,7 @@ export default class Sidebar {
         h_flex()
           .gap(10)
           .items_start()
-          .child(h_flex().mt(1).size(28).flex_none().rounded(7).bg(fill).items_center().justify_center().child(Icon(kindIcon, { size: 15, color: "#ffffff" })))
+          .child(h_flex().mt(1).size(28).flex_none().rounded(7).bg(fill).items_center().justify_center().child(Icon(kindIcon, { size: 15, color: inkOn(fill, "#ffffff") })))
           .child(
             v_flex()
               .flex_1()
@@ -879,7 +880,7 @@ export default class Sidebar {
         .tooltip(`${s.name}${s.branch ? ` · ${s.branch}` : ""}  (double-click to rename, drag to move)`)
         .when(tree, (e) => e.child(Icon("git-branch", { size: 13, color: k.dim })))
         .when(!tree, (e) =>
-          e.child(h_flex().size(18).flex_none().rounded(5).bg(fill).items_center().justify_center().text_size(10.5).font_bold().text_color("#ffffff").child([...s.name][0]?.toUpperCase() ?? "?")),
+          e.child(h_flex().size(18).flex_none().rounded(5).bg(fill).items_center().justify_center().text_size(10.5).font_bold().text_color(inkOn(fill, "#ffffff")).child([...s.name][0]?.toUpperCase() ?? "?")),
         )
         .child(div().flex_shrink_1().min_w(0).truncate().font_medium().child(s.name))
         .child(div().flex_1())
@@ -1135,7 +1136,7 @@ export default class Sidebar {
     return out;
   }
 
-  /** Space avatar colors, the ones Herdr's own list keeps in `space.colors`, given to new spaces the same way. */
+  /** Space avatar colors, the ones Herdr's own list keeps in `space.colors`, given to new spaces the same way and drawn in the theme's hues. */
   spaceColors(sp) {
     const MARK = { ansi6: "#22a99a", ansi3: "#e3814f", ansi4: "#5b8def", ansi5: "#8b7cf6", ansi2: "#3fae6a", ansi1: "#d9649a" };
     const palette = Object.keys(MARK);
@@ -1150,7 +1151,8 @@ export default class Sidebar {
       changed = true;
     }
     if (changed) setShared("space.colors", kept);
-    return Object.fromEntries(Object.entries(kept).map(([id, c]) => [id, c.startsWith("#") ? c : MARK[c] ?? c]));
+    const hues = tokens().t ?? {};
+    return Object.fromEntries(Object.entries(kept).map(([id, c]) => [id, c.startsWith("#") ? c : hues[c] ?? MARK[c] ?? c]));
   }
 
   /** The rail: a dot per waiting agent, then the threads as avatars (their kind's icon) with their status. */
@@ -1189,7 +1191,7 @@ export default class Sidebar {
             run("space.select", { id: s.id });
             showSpace(s.id);
           })
-          .child(h_flex().size(20).rounded(5).bg(colors[s.id] ?? k.ring).items_center().justify_center().child(Icon(kindOf(thread.kind)[2], { size: 12, color: "#ffffff" })))
+          .child(h_flex().size(20).rounded(5).bg(colors[s.id] ?? k.ring).items_center().justify_center().child(Icon(kindOf(thread.kind)[2], { size: 12, color: inkOn(colors[s.id] ?? k.ring, "#ffffff") })))
           .when(["blocked", "failed", "done"].includes(agentStatus(s.status)), (e) => e.child(div().absolute().top(3).right(8).size(7).rounded(4).bg(statusColor(k, agentStatus(s.status))))),
       ),
     ];

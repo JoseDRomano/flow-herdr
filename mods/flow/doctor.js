@@ -7,7 +7,7 @@
 import { div, image } from "gpui-kit";
 import * as base from "gpui-base";
 import { h_flex, v_flex, InputState } from "gpui-base";
-import { props, shared, setShared, openOverlay, closeOverlay, notify, run } from "herdr";
+import { props, shared, setShared, openOverlay, closeOverlay, notify, run, updates } from "herdr";
 import * as hub from "./hub.js";
 import { MOVE_FIRST } from "./person.js";
 import { openInEditor, editorLabel } from "./editor.js";
@@ -108,6 +108,35 @@ export function openSettings({ tab = null, person = false } = {}) {
  * A quiet row that opens Flow settings, with how many checks fail when a report was read: the sidebar's and the
  * drawer's. It opens on Health while a check fails, the tab its count is about. `rail` keeps the icon alone.
  */
+/** The Herdr app's own Settings (a dot when an update waits) and Add machine, as rows under Flow settings. */
+export function HerdrLinks(id, { rail = false } = {}) {
+  const k = tokens();
+  let ready = false;
+  try {
+    ready = Boolean(updates()?.app?.ready);
+  } catch {}
+  const row = (key, icon, label, dim, action, extra = null) => {
+    const e = h_flex()
+      .id(`${id}-${key}`)
+      .h(28)
+      .gap(8)
+      .flex_none()
+      .items_center()
+      .rounded(RADIUS.md)
+      .cursor_pointer()
+      .text_color(dim ? k.dim : k.mutedFg)
+      .hover((s) => s.bg(k.accent).text_color(k.foreground))
+      .on_click(action)
+      .child(Icon(icon, { size: 14 }));
+    if (rail) return e.relative().justify_center().tooltip(label).when(Boolean(extra), (x) => x.child(div().absolute().top(5).right(6).child(extra)));
+    return e.px(8).child(div().flex_1().truncate().text_size(TEXT.sm).child(label)).when(Boolean(extra), (x) => x.child(extra));
+  };
+  return v_flex()
+    .gap(2)
+    .child(row("settings", "settings", "Settings", false, () => run("app.settings"), ready ? div().size(6).rounded_full().bg(k.ring) : null))
+    .child(row("machine", "plus", "Add machine", true, () => run("mod.open", { name: "machine-add" })));
+}
+
 export function SettingsLink(id, { rail = false } = {}) {
   // A remote desk reads another machine: its settings and checks are that machine's.
   if (hub.remoteMachine()) return div();

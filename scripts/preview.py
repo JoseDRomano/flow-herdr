@@ -24,7 +24,9 @@ def svg(p):
     red, green, yellow, blue = p["ansi"][1], p["done"], p["blocked"], p["working"]
     out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="800" height="512">']
     add = out.append
-    add(f'<rect width="{W}" height="{H}" rx="10" fill="{p["canvas"]}"/>')
+    # The sky behind everything: the theme's chrome at the top, its canvas at the bottom, as the layout paints it.
+    add(f'<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{p["chrome"]}"/><stop offset="1" stop-color="{p["canvas"]}"/></linearGradient></defs>')
+    add(f'<rect width="{W}" height="{H}" rx="10" fill="url(#sky)"/>')
     # The flow bar: window buttons, brand, tabs as pills, the bell.
     add(f'<circle cx="10" cy="10.5" r="2.6" fill="#ff5f57"/><circle cx="18" cy="10.5" r="2.6" fill="#febc2e"/><circle cx="26" cy="10.5" r="2.6" fill="#28c840"/>')
     add(f'<rect x="36" y="7" width="7" height="7" rx="2" fill="{accent}"/>')
@@ -107,7 +109,7 @@ def png(text, to):
 
 
 if __name__ == "__main__":
-    dark, light = svg(palette("flow")), svg(palette("flow-light"))
+    dark, light = svg(palette("flow-mist")), svg(palette("flow-mist-light"))
     (ROOT / "layouts" / "flow.svg").write_text(dark)
     png(dark, ROOT / "mods" / "flow" / "layouts" / "flow-dark.png")
     png(light, ROOT / "mods" / "flow" / "layouts" / "flow-light.png")

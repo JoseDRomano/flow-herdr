@@ -2,7 +2,8 @@
 
 A Herdr app layout for watching every coding agent you run and answering the ones waiting for you. It has one bar
 across the top for your tabs, search and the bell, a sidebar under it with your quotas, what needs you and every agent
-and space, and soft borderless cards on Flow's own teal theme, in light and dark.
+and space, and soft borderless cards floating on a sky, in two looks you switch like any theme: Mist and Daylight, in
+light and dark.
 
 ![Flow](preview.png)
 
@@ -43,9 +44,23 @@ yours. `--copy` copies the files instead of linking them, and `--switch` shows t
 ## Layouts
 
 - **Flow** (`flow`): one 52px bar across the window (Herdr's brand and search, your tabs as pills, the bell), the
-  sidebar under it on the left, the center as borderless cards with a 14px radius on the `canvas`, the side panel
-  (Show, Review, Runbook, Files, Changes, the side browser) on the right, and the status bar across the bottom. Its
-  theme is `themes/flow.json` (dark) and `themes/flow-light.json` (light), in Geist and Geist Mono.
+  sidebar under it on the left, the center as borderless cards with a 16px radius, the side panel (Show, Review,
+  Runbook, Files, Changes, the side browser) on the right, and the status bar across the bottom, in Geist and Geist
+  Mono. Behind them is a sky: a gradient from the theme's `chrome` at the top to its `canvas` at the bottom, with no
+  bands of its own for the bar, the sidebar or the status bar.
+
+## Looks
+
+Pick a look in Settings → Look, or with `app.theme`, as you would any theme. Each has a light and a dark half that
+follows your appearance.
+
+- **Mist** (`flow-mist`, `flow-mist-light`, the default): cool lavender greys and a periwinkle accent, with the sky lit
+  from above. Peach marks an agent that needs you.
+- **Daylight** (`flow-daylight`, `flow-daylight-light`): the window's sky follows your agents. It's night (or a clear
+  blue day in light) while they work, and turns to dawn, with a warm horizon and a warm accent, while one waits on you.
+  Flow swaps in the dawn twins (`flow-daylight-dawn`, `flow-daylight-light-dawn`) by itself and back once nothing
+  waits; the terminals keep their colours through the swap.
+- **Classic** (`flow`, `flow-light`): Flow's first teal theme, still there to pick.
 
 ## Threads
 

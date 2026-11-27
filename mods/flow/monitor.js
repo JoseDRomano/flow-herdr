@@ -1145,7 +1145,7 @@ export class MonitorWindow {
           .items_center()
           .border_b_1()
           .border_color(k.border)
-          .bg(k.chrome)
+          .bg(k.muted)
           .child(e ? Icon(state(e.kind === "app" ? e.item.state : e.item.state ?? "alert")[1], { size: 16, color: tone(e.item.state ?? "alert", k) }) : Icon("activity", { size: 16, color: k.mutedFg }))
           .child(v_flex().flex_1().min_w(0).child(div().truncate().text_size(TEXT.base).font_semibold().child(title)).child(div().truncate().text_size(TEXT.xs).text_color(k.mutedFg).child(description)))
           .child(stop(Button("window-close", { icon: "x", variant: "ghost", size: "icon-sm", tooltip: "Close", onClick: () => closeOverlay(props().overlay) }))),
