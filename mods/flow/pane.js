@@ -107,7 +107,7 @@ export default class PaneHeader {
       .px(10)
       .gap(8)
       .items_center()
-      .bg(k.background)
+      .bg(k.sheet)
       .border_b(1)
       .border_color(k.border)
       .text_size(TEXT.sm)

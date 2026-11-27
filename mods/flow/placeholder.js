@@ -17,7 +17,7 @@ export default class Placeholder {
     const [title, icon] = NAMES[this.app] ?? [this.app || "Flow", "layout"];
     return v_flex()
       .size_full()
-      .bg(k.background)
+      .bg(k.sheet)
       .child(PageHeader({ icon, title }))
       .child(Empty({ icon, title: `${title} is on its way`, description: "This app is not drawn in the Herdr app yet." }));
   }

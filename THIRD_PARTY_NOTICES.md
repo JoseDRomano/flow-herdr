@@ -127,3 +127,11 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## SIL Open Font License 1.1: Instrument Serif
+
+- Source: https://github.com/Instrument/instrument-serif, as published in https://github.com/google/fonts
+  (`ofl/instrumentserif/`)
+- In Flow: `mods/flow/fonts/InstrumentSerif-Regular.ttf` and `mods/flow/fonts/InstrumentSerif-Italic.ttf`, unmodified;
+  the Daylight look sets its greeting and big numerals in it.
+- Copyright 2022 The Instrument Serif Project Authors. The full licence text is in `LICENSES/OFL-1.1.txt`.

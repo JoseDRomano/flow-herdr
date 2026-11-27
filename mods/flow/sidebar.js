@@ -18,7 +18,7 @@ import { SettingsLink, HerdrLinks } from "./doctor.js";
 import { openUsage, inkOn } from "./usage.js";
 import { FOLDERS, normalize as normalizeFolders, arrange as arrangeFolders, toggleFolder as toggleFolders, machineKey, machineOfKey } from "./folders.js";
 import { openFolderName } from "./folder-name.js";
-import { THREADS, kindOf, settle as settleThreads, split as splitThreads, unbridged, bridged, activity, ago, threadFolder, normalize as threadsOf } from "./threads.js";
+import { THREADS, KINDS, kindOf, settle as settleThreads, split as splitThreads, unbridged, bridged, activity, ago, threadFolder, normalize as threadsOf } from "./threads.js";
 import { BRIDGES, remember, machineWords } from "./bridge.js";
 import { tokens, alpha, TEXT, RADIUS, Icon, Kbd, Button, openMenu, SectionHeader, StageHeading, HoverCard, Hover, Flashes, CornerCount, HubDown, dur, AgentLogo, providersOf } from "./ui.js";
 import { AgentsModel, QuestionCard, QuotaBars, StageMark, Chips, STAGES, stageColor, stageAge, hours, statusColor, UndoRow } from "./agentsui.js";
@@ -654,7 +654,7 @@ export default class Sidebar {
   /**
    * A thread as a card: its kind's tile, its title, its kind, where it works, how many panes and how long it has been
    * open, then what its agents are doing. Nothing in it is a link of its own: a click shows the thread, a drag moves
-   * it, a double-click renames it, a right-click or ⋯ opens its menu, and ✓ asks before resolving it.
+   * it, a double-click renames it, a right-click opens its menu, and ✓ asks before resolving it.
    */
   threadCard(k, { s, i, thread }, { colors, ps, byAddress, sp }) {
     const STATUS = { blocked: "needs_you", failed: "failed", working: "working", done: "done", idle: "idle" };
@@ -690,22 +690,6 @@ export default class Sidebar {
         askResolve(s.id);
       })
       .child(Icon("circle-check", { size: 15, color: k.dim }));
-    const moreButton = h_flex()
-      .id(`thread-more-${s.id}`)
-      .size(24)
-      .flex_none()
-      .items_center()
-      .justify_center()
-      .rounded(RADIUS.md)
-      .hover((st) => st.bg(k.accent))
-      .tooltip("Edit, rename, change kind…")
-      .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
-      .on_mouse_up("left", (_e, cx) => {
-        cx.stop_propagation();
-        this.drag = null;
-        this.threadMenu(s, thread);
-      })
-      .child(Icon("more", { size: 15, color: k.dim }));
     return v_flex()
       .id(`thread-${s.id}`)
       .relative()
@@ -715,9 +699,9 @@ export default class Sidebar {
       .py(10)
       .gap(6)
       .rounded(RADIUS.lg)
-      .border_1()
-      .border_color(on ? alpha(k.ring, 0.55) : alpha(k.border, 0.6))
-      .bg(on ? k.selected : alpha(k.card, 0.6))
+      // Over Daylight's sky a thread is a plain row, the shown one lit; elsewhere each is a card of its own.
+      .when(!k.sky, (e) => e.border_1().border_color(on ? alpha(k.ring, 0.55) : alpha(k.border, 0.6)).bg(on ? k.selected : alpha(k.card, 0.6)))
+      .when(k.sky && on, (e) => e.bg(k.accent))
       .cursor_pointer()
       .when(!on, (e) => e.hover((st) => st.bg(k.accent)))
       .when(Boolean(dragging) && this.drag?.over !== i, (e) => e.opacity(0.5))
@@ -749,21 +733,20 @@ export default class Sidebar {
         this.drag = null;
         this.threadMenu(s, thread);
       })
-      .tooltip(`${kindLabel} · ${s.name}${threadFolder(thread) ? ` · ${where}:${threadFolder(thread)}` : ""}${thread.where?.argv ? `, through ${machineWords(s.machine)}` : ""}  (double-click to rename, drag to move, right-click or ⋯ for more)`)
       .child(
         h_flex()
           .gap(10)
           .items_start()
-          .child(h_flex().mt(1).size(28).flex_none().rounded(7).bg(fill).items_center().justify_center().child(Icon(kindIcon, { size: 15, color: inkOn(fill, "#ffffff") })))
+          .child(h_flex().mt(1).size(k.sky ? 24 : 28).flex_none().rounded(k.sky ? 6 : 7).bg(fill).items_center().justify_center().child(Icon(kindIcon, { size: 15, color: inkOn(fill, "#ffffff") })))
           .child(
             v_flex()
               .flex_1()
               .min_w(0)
               .gap(2)
-              .child(div().truncate().text_size(TEXT.base).font_semibold().text_color(k.foreground).child(s.name))
+              .child(div().truncate().text_size(TEXT.base).when(k.sky, (e) => e.font_medium()).when(!k.sky, (e) => e.font_semibold()).text_color(k.foreground).child(s.name))
               .child(h_flex().gap(4).items_center().min_w(0).text_size(TEXT.xs).text_color(k.dim).when(Boolean(thread.where), (e) => e.child(Icon("server", { size: 10 }))).child(div().truncate().child(meta))),
           )
-          .child(h_flex().flex_none().child(moreButton).child(resolveButton)),
+          .child(h_flex().flex_none().child(resolveButton)),
       )
       .when(states.length > 0, (e) =>
         e.child(
@@ -1177,7 +1160,7 @@ export default class Sidebar {
     return Object.fromEntries(Object.entries(kept).map(([id, c]) => [id, c.startsWith("#") ? c : hues[c] ?? MARK[c] ?? c]));
   }
 
-  /** The rail: a dot per waiting agent, then the threads as avatars (their kind's icon) with their status. */
+  /** The rail: a dot per waiting agent, then the threads as avatars (their kind's icon) with their status, each with its menu on a right-click. */
   railRows(k, rows) {
     const waiting = rows.filter((r) => r.stage === "needs_you");
     const sp = spaces();
@@ -1212,6 +1195,10 @@ export default class Sidebar {
           .on_click(() => {
             run("space.select", { id: s.id });
             showSpace(s.id);
+          })
+          .on_mouse_down("right", (_e, cx) => {
+            cx.stop_propagation();
+            this.threadMenu(s, thread);
           })
           .child(h_flex().size(20).rounded(5).bg(colors[s.id] ?? k.ring).items_center().justify_center().child(Icon(kindOf(thread.kind)[2], { size: 12, color: inkOn(colors[s.id] ?? k.ring, "#ffffff") })))
           .when(["blocked", "failed", "done"].includes(agentStatus(s.status)), (e) => e.child(div().absolute().top(3).right(8).size(7).rounded(4).bg(statusColor(k, agentStatus(s.status))))),

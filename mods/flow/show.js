@@ -603,7 +603,7 @@ export default class Show {
     this.follow(cx);
     const view = this.view();
     const narrow = this.width < 520;
-    let root = v_flex().id("show-root").size_full().relative().bg(k.background).text_color(k.foreground).track_focus(this.handle)
+    let root = v_flex().id("show-root").size_full().relative().bg(k.sheet).text_color(k.foreground).track_focus(this.handle)
       .on_size_change((size, cx) => {
         if (Math.abs(size.width - this.width) > 1 || Math.abs(size.height - (this.height ?? 0)) > 1) {
           [this.width, this.height] = [size.width, size.height];
@@ -985,7 +985,7 @@ export default class Show {
       .when(!narrow, (e) => e.child(controls));
     const swatch = (mark, label) => h_flex().gap(6).items_center().flex_none().child(mark).child(label);
     const legend = h_flex().gap(14).items_center().flex_wrap().text_size(TEXT.xs).text_color(k.mutedFg)
-      .child(swatch(div().size(12).rounded_full().bg(k.done).flex().items_center().justify_center().text_size(8).font_semibold().text_color(k.background).child("✓"), "Done"))
+      .child(swatch(div().size(12).rounded_full().bg(k.done).flex().items_center().justify_center().text_size(8).font_semibold().text_color(k.paper).child("✓"), "Done"))
       .child(swatch(div().size(9).rounded_full().bg(k.working), "In progress"))
       .child(swatch(div().w(14).h(9).rounded(3).border_1().border_color(k.input).bg(k.card), "To do"))
       .child(div().flex_1())

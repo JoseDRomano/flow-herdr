@@ -657,7 +657,7 @@ export default class Todo {
       .track_focus(this.handle)
       .size_full()
       .relative()
-      .bg(k.background)
+      .bg(k.sheet)
       .text_color(k.foreground)
       .text_size(TEXT.base)
       .on_mouse_down("left", () => {

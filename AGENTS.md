@@ -32,6 +32,11 @@ Omar, `me@acme.example`, `@example.com`). Never copy anything from the person's 
 - Doc comments: one or two plain sentences in the present tense, saying what the code does. No history, no issue or
   PR numbers.
 - The mod is one folder: Herdr refuses imports outside a mod's folder, so don't split it.
+- `layouts/flow-mist.json` and `layouts/flow-daylight.json` are written from `layouts/flow.json` with the changes
+  `scripts/looks.json` gives each look, and their `keys.json` sections from `layout:flow`: edit those, then run
+  `python3 scripts/looks.py`. Never edit the looks by hand.
+- A look's own choices live in its themes' `colors` (Daylight's `sky_*`, `glass_*`, `quota`, `need`), read through
+  `tokens()` in `ui.js` with a fallback that keeps the other looks as they are.
 - A layout node the mod names (`center`, `work`, `view`, `main`, `agent`, `panel`, `panel-body`, `home`, `home-agent`,
   `sidebar`, `status`, ...) keeps its id; `screens.js` lists each layout's screens. Moving the side panel or the status
   bar changes `INSETS` in `web.js`.

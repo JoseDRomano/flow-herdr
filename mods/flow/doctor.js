@@ -12,7 +12,7 @@ import * as hub from "./hub.js";
 import { MOVE_FIRST } from "./person.js";
 import { openInEditor, editorLabel } from "./editor.js";
 import { versions, checkNow, versionLine, openUpdate } from "./update.js";
-import { layoutName } from "./screens.js";
+import { shownLayout } from "./screens.js";
 import { tokens, TEXT, RADIUS, Icon, Button, Badge, Tabs, Skeleton, Spinner, Toaster, Mono, Card, AlertDialog, Toggle, AgentLogo, Pills, TextField, viewport } from "./ui.js";
 
 // A Herdr without ScrollHandle still draws the sheet; j/k then move without scrolling.
@@ -72,6 +72,24 @@ export const LAYOUT_CHOICES = [
       "Your agents' terminals as soft cards, the inbox, review and runbooks beside them",
       "A sidebar under the bar with your quotas, Needs you and every agent and space",
       "Flow's own teal theme, light and dark, with Geist type",
+    ],
+  },
+  {
+    name: "flow-mist",
+    title: "Mist",
+    points: [
+      "Flow with cool lavender greys and a periwinkle accent",
+      "Cards float on a sky lit from above, with no bands for the bars",
+      "Peach marks an agent that needs you",
+    ],
+  },
+  {
+    name: "flow-daylight",
+    title: "Daylight",
+    points: [
+      "Flow under a sky that follows your agents",
+      "Night while they work, a clear blue day in light mode",
+      "Dawn rises from the bottom edge while one waits on you",
     ],
   },
 ];
@@ -1123,15 +1141,15 @@ export default class Settings {
    */
   useLayout(name) {
     const choice = LAYOUT_CHOICES.find((l) => l.name === name);
-    if (!choice || name === layoutName()) return;
+    if (!choice || name === shownLayout()) return;
     notify({ title: `This is ${choice.title}`, body: "Flow settings, under Layout, switches back.", level: "info", timeout: 8000 });
     this.dismiss();
     run("layout.switch", { name });
   }
 
-  /** The Layout tab: a card per cockpit layout with its picture in the window's theme, side by side, stacked when narrow. */
+  /** The Layout tab: a card per Flow layout with its picture in the window's theme, two to a row, stacked when narrow. */
   layoutEl(k) {
-    const shown = layoutName();
+    const shown = shownLayout();
     const dark = isDark(k.background);
     const room = Math.max(280, (this.width ?? 860) - 40);
     const stacked = room < 600;
@@ -1176,8 +1194,8 @@ export default class Settings {
     };
     return v_flex()
       .gap(12)
-      .child(div().whitespace_normal().text_size(TEXT.sm).text_color(k.mutedFg).child("Two ways to see the same agents, apps and hub. Switching keeps everything where it was."))
-      .child((stacked ? v_flex() : h_flex().items_start()).gap(16).children(LAYOUT_CHOICES.map(card)));
+      .child(div().whitespace_normal().text_size(TEXT.sm).text_color(k.mutedFg).child("Three looks for the same agents, apps and hub. Switching keeps everything where it was."))
+      .child((stacked ? v_flex() : h_flex().items_start().flex_wrap()).gap(16).children(LAYOUT_CHOICES.map(card)));
   }
 
   agentsEl(k) {

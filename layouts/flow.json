@@ -4,7 +4,7 @@
   "titlebar": "none",
   "traffic_lights": [16, 18],
   "background": { "gradient": ["chrome", "canvas"], "angle": 180 },
-  "theme": { "light": "flow-mist-light", "dark": "flow-mist" },
+  "theme": { "light": "flow-light", "dark": "flow" },
   "font": "Geist Mono",
   "font_size": 14,
   "ui_font": "Geist",

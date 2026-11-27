@@ -2,8 +2,8 @@
 
 A Herdr app layout for watching every coding agent you run and answering the ones waiting for you. It has one bar
 across the top for your tabs, search and the bell, a sidebar under it with your quotas, what needs you and every agent
-and space, and soft borderless cards floating on a sky, in two looks you switch like any theme: Mist and Daylight, in
-light and dark.
+and space, and soft borderless cards floating on a sky, in three layouts that differ only in their look: Flow, Mist
+and Daylight, each in light and dark.
 
 ![Flow](preview.png)
 
@@ -51,16 +51,22 @@ yours. `--copy` copies the files instead of linking them, and `--switch` shows t
 
 ## Looks
 
-Pick a look in Settings → Look, or with `app.theme`, as you would any theme. Each has a light and a dark half that
-follows your appearance.
+Flow comes as three layouts with the same blocks and keys, each opening in its own look, light and dark. Switch with
+`⌘⇧L`, in Settings → Look, or in Flow settings → Layout:
 
-- **Mist** (`flow-mist`, `flow-mist-light`, the default): cool lavender greys and a periwinkle accent, with the sky lit
-  from above. Peach marks an agent that needs you.
-- **Daylight** (`flow-daylight`, `flow-daylight-light`): the window's sky follows your agents. It's night (or a clear
-  blue day in light) while they work, and turns to dawn, with a warm horizon and a warm accent, while one waits on you.
-  Flow swaps in the dawn twins (`flow-daylight-dawn`, `flow-daylight-light-dawn`) by itself and back once nothing
-  waits; the terminals keep their colours through the swap.
-- **Classic** (`flow`, `flow-light`): Flow's first teal theme, still there to pick.
+- **Flow** (`flow`, themes `flow` and `flow-light`): Flow's own teal.
+- **Mist** (`flow-mist`, themes `flow-mist` and `flow-mist-light`): cool lavender greys and a periwinkle accent, with
+  the sky lit from above. Peach marks an agent that needs you.
+- **Daylight** (`flow-daylight`, themes `flow-daylight` and `flow-daylight-light`): the window's sky follows your
+  agents. It's night (or a clear blue day in light) while they work, and a dawn rises from the bottom edge while one
+  waits on you. Flow swaps in the dawn twins (`flow-daylight-dawn`, `flow-daylight-light-dawn`) by itself and back once
+  nothing waits; the terminals keep their colours through the swap. Cards and panes are frosted glass over the sky,
+  terminals included, amber is kept for what needs you, and Home opens on how many agents need you as one big numeral,
+  under a greeting in Instrument Serif. Its top bar is Flow's own: the brand over the sidebar and the space's tabs in
+  one pill, with Files, Changes and the bell at the right.
+
+`layouts/flow-mist.json` and `layouts/flow-daylight.json` are written from `layouts/flow.json`, with the changes
+`scripts/looks.json` gives each look, and their key sections from `layout:flow`, by `python3 scripts/looks.py`.
 
 ## Threads
 

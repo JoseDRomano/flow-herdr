@@ -41,7 +41,7 @@ export default class Reader {
     return v_flex()
       .id("reader")
       .size_full()
-      .bg(k.background)
+      .bg(k.sheet)
       .text_color(k.foreground)
       .child(
         h_flex()

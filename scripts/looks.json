@@ -1,0 +1,14 @@
+{
+  "flow-mist": {},
+  "flow-daylight": {
+    "root": { "terminal_opacity": 0 },
+    "nodes": {
+      "body": { "background": { "gradient": ["sky_rise_from", "sky_rise"], "angle": 180 } },
+      "status": { "background": "sky_floor" },
+      "brand": { "content": { "mod": "flow", "props": { "app": "brand" } } },
+      "tabs": { "content": { "mod": "flow", "props": { "app": "tabs" } } }
+    },
+    "cards": { "radius": 14, "shadow": null, "border": { "width": 1, "color": "glass_line" } },
+    "panes": { "radius": 14, "veil": null, "border": { "width": 1, "color": "glass_line" }, "focus": { "width": 1, "color": "glass_focus" } }
+  }
+}

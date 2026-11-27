@@ -907,7 +907,7 @@ test("the Agents tab says driven for an agent cockpit can run itself, and its to
   assert.ok(!words.includes("in chat"));
 });
 
-test("the Layout tab shows Flow in the window's theme, In use, with nothing to switch to", async () => {
+test("the Layout tab shows Flow, Mist and Daylight in the window's theme, Flow In use, the others a switch away", async () => {
   const dark = { background: "#101010", foreground: "#eee", mutedFg: "#aaa", dim: "#888", border: "#333", ring: "#55f" };
   const light = { ...dark, background: "#fafaf8", foreground: "#111" };
   const f = await fixture();
@@ -917,13 +917,14 @@ test("the Layout tab shows Flow in the window's theme, In use, with nothing to s
   assert.equal(s.tab, "layout");
   const cards = (k) => f.flat(s.layoutEl(k)).filter((el) => el?.made?.some(([name, id]) => name === "id" && /^layout-flow/.test(id)));
   const pictures = (k) => f.flat(s.layoutEl(k)).filter((el) => el?.kind === "image").map((el) => el.path);
-  assert.deepEqual(pictures(dark), ["mods/flow/layouts/flow-dark.png"]);
-  assert.deepEqual(pictures(light), ["mods/flow/layouts/flow-light.png"]);
-  assert.equal(cards(dark).length, 1);
+  assert.deepEqual(pictures(dark), ["mods/flow/layouts/flow-dark.png", "mods/flow/layouts/flow-mist-dark.png", "mods/flow/layouts/flow-daylight-dark.png"]);
+  assert.deepEqual(pictures(light), ["mods/flow/layouts/flow-light.png", "mods/flow/layouts/flow-mist-light.png", "mods/flow/layouts/flow-daylight-light.png"]);
+  assert.equal(cards(dark).length, 3);
   const words = f.words(s.layoutEl(dark));
-  for (const w of ["Flow", "In use", ...f.doctor.LAYOUT_CHOICES.flatMap((l) => l.points)]) assert.ok(words.includes(w), w);
-  const useButton = () => f.flat(s.layoutEl(dark)).find((el) => el?.made?.some(([name, id]) => name === "id" && id === "layout-use-flow"));
-  assert.ok(!useButton(), "no Use this layout while Flow is shown");
+  for (const w of ["Flow", "Mist", "Daylight", "In use", ...f.doctor.LAYOUT_CHOICES.flatMap((l) => l.points)]) assert.ok(words.includes(w), w);
+  const useButton = (name) => f.flat(s.layoutEl(dark)).find((el) => el?.made?.some(([key, id]) => key === "id" && id === `layout-use-${name}`));
+  assert.ok(!useButton("flow"), "no Use this layout while Flow is shown");
+  assert.ok(useButton("flow-mist") && useButton("flow-daylight"), "Mist and Daylight are a switch away");
   // The layout shown changes nothing, and a made-up one is no choice.
   s.useLayout("flow");
   s.useLayout("made-up");

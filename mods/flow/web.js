@@ -267,7 +267,7 @@ export default class Web {
     return div()
       .id("web-slot")
       .size_full()
-      .bg(k.background)
+      .bg(k.sheet)
       .rounded(RADIUS.md)
       .overflow_hidden()
       .on_size_change((size, cx) => {

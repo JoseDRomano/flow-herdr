@@ -93,7 +93,7 @@ export default class Status {
     const ready = board.ready;
 
     const item = (id, el, { onClick, tooltip, button = false } = {}) => {
-      let e = h_flex().id(id).h(26).px(8).gap(6).flex_none().items_center().rounded(RADIUS.md).text_size(TEXT.sm).text_color(k.mutedFg);
+      let e = h_flex().id(id).h(26).px(8).gap(6).flex_none().items_center().rounded(RADIUS.md).text_size(TEXT.sm).text_color(k.skyInk);
       // The agent's links and documents read as buttons: filled and outlined, apart from the plain facts around them.
       if (button) e = e.h(24).px(10).bg(k.muted).border_1().border_color(k.border).text_color(k.foreground);
       if (onClick) e = e.cursor_pointer().hover((s) => s.bg(k.accent).text_color(k.foreground)).on_click((ev, cx) => onClick(ev, cx));
@@ -102,19 +102,21 @@ export default class Status {
     };
     let dots = 0;
     const dot = (color, pulse = false) => div().id(`st-dot-${dots++}`).size(7).flex_none().rounded(3).bg(color).when(pulse, (e) => e.loop("opacity", { from: 0.35, to: 1, period: 1200 }));
+    // Over Daylight's sky every count keeps its colour, and on a dawn the words take the bar's ink.
+    const idle = (color) => (k.sky ? color : k.border);
     const sep = () => div().w(1).h(12).mx(4).flex_none().bg(k.border);
 
     const needs = count("needs");
     // What a narrow bar leaves out, least needed first: quota (the sidebar has it), ahead/files, CI/PR, ready/done.
     const w = this.width ?? 1280;
     const left = [
-      item("st-needs", [dot(needs ? k.blocked : k.border, needs > 0), div().when(needs > 0, (e) => e.text_color(k.blocked).font_medium()).child(`${needs} need${needs === 1 ? "s" : ""} you`)], {
+      item("st-needs", [dot(needs ? k.blocked : idle(k.blocked), needs > 0), div().when(needs > 0, (e) => e.text_color(k.dawn ? k.skyInk : k.blocked).font_medium()).child(`${needs} need${needs === 1 ? "s" : ""} you`)], {
         onClick: (_e, cx) => this.command("next-waiting", cx),
         tooltip: hint("Next agent waiting", "flow.next-waiting"),
       }),
-      item("st-working", [count("working") ? Spinner({ size: 12, color: k.working }) : dot(k.border), div().child(`${count("working")} working`)], { onClick: () => show("home"), tooltip: hint("Home", "flow.home") }),
-      w >= 640 && item("st-ready", [dot(ready ? k.success : k.border), div().child(`${ready} ready`)], { onClick: () => show("home"), tooltip: "Agents whose PR is approved and green" }),
-      w >= 640 && item("st-done", [dot(count("done") ? k.done : k.border), div().child(`${count("done")} done`)], { onClick: (_e, cx) => this.command("next:done", cx), tooltip: hint("Next finished agent", "flow.next:done") }),
+      item("st-working", [count("working") ? Spinner({ size: 12, color: k.working }) : dot(idle(k.working)), div().child(`${count("working")} working`)], { onClick: () => show("home"), tooltip: hint("Home", "flow.home") }),
+      w >= 640 && item("st-ready", [dot(ready ? k.success : idle(k.success)), div().child(`${ready} ready`)], { onClick: () => show("home"), tooltip: "Agents whose PR is approved and green" }),
+      w >= 640 && item("st-done", [dot(count("done") ? k.done : idle(k.done)), div().child(`${count("done")} done`)], { onClick: (_e, cx) => this.command("next:done", cx), tooltip: hint("Next finished agent", "flow.next:done") }),
     ].filter(Boolean);
 
     // The branch and links of the agent in view on the right, always in the hub's order (PR, ticket, CI, deploy, cited pages);

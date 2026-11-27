@@ -449,7 +449,7 @@ export default class Review {
     this.follow(cx);
     const k = tokens();
     const narrow = this.width < 560;
-    let root = v_flex().id("review-root").size_full().relative().bg(k.background).text_color(k.foreground).track_focus(this.handle)
+    let root = v_flex().id("review-root").size_full().relative().bg(k.sheet).text_color(k.foreground).track_focus(this.handle)
       .on_size_change((size, cx) => {
         if (Math.abs(size.width - this.width) > 1) {
           this.width = size.width;

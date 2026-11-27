@@ -178,16 +178,20 @@ function handlersOf(c, layout, views, mod) {
   return out;
 }
 
-/** Every `layout:<name>` binding no handler or more than one runs in its layout: [{layout, keys, action, handlers}]. */
+/**
+ * Every `layout:<name>` binding no handler or more than one runs in its layout: [{layout, keys, action, handlers}]. A
+ * look (`flow-mist`) shows its own file's views and runs window commands as the layout it copies, as the mod does.
+ */
 async function check(keys, mod) {
   const problems = [];
   for (const [section, map] of Object.entries(keys)) {
     if (!section.startsWith("layout:")) continue;
     const layout = section.slice(7);
+    const base = Object.keys(mod.RUNNER).find((n) => layout === n || layout.startsWith(`${n}-`)) ?? layout;
     const views = await layoutViews(layout);
     for (const [k, action] of Object.entries(map)) {
       if (!action.startsWith("flow.")) continue;
-      const handlers = handlersOf(action.slice(5), layout, views, mod);
+      const handlers = handlersOf(action.slice(5), base, views, mod);
       if (handlers.length !== 1) problems.push({ layout, keys: k, action, handlers });
     }
   }

@@ -23,6 +23,10 @@ export function tokens() {
   return {
     t,
     background: t.background,
+    // What a screen's root paints: nothing where the theme's cards are glass, as the layout's card already is the glass.
+    sheet: glass(t) ? "#00000000" : t.background,
+    // The background without its alpha, for text and knobs on a colour.
+    paper: t.paper ?? opaque(t.background),
     foreground: t.foreground,
     card: t.background,
     canvas: t.canvas ?? t.background,
@@ -37,7 +41,7 @@ export function tokens() {
     input: t.input ?? t.border,
     ring: t.accent,
     primary: t.solid ?? t.foreground,
-    primaryFg: t.solid_foreground ?? t.background,
+    primaryFg: t.solid_foreground ?? opaque(t.background),
     destructive: t.ansi1,
     success: t.ansi2 ?? t.done,
     warning: t.ansi3 ?? t.working,
@@ -46,19 +50,37 @@ export function tokens() {
     blocked: t.blocked,
     done: t.done,
     idle: t.idle,
+    // A look's own choices, from its theme: the quota bars' fill, the "needs you" card, the face for big words.
+    quota: t.quota ?? t.ansi2 ?? t.done,
+    need: t.need ?? alpha(t.blocked, 0.09),
+    needRing: t.need_ring ?? alpha(t.blocked, 0.45),
+    display: t.sky_floor ? "Instrument Serif" : null,
+    // The tab bar's pill and its shown tab.
+    pill: t.pill ?? alpha(t.foreground, 0.06),
+    tabOn: t.tab_on ?? t.selected ?? t.hover,
+    // Daylight's sky: the status bar's ink over it, and whether the bar sits on a painted dawn.
+    sky: Boolean(t.sky_floor),
+    skyInk: t.sky_ink ?? t.muted,
+    dawn: /^#[0-9a-f]{6}(?!00)[0-9a-f]{2}$|^#[0-9a-f]{6}$/i.test(t.sky_floor ?? "#00000000"),
   };
 }
 
-/** `color` at this opacity, for tints (a 15% destructive behind its text). */
+/** Whether the theme's cards are see-through: its background carries an alpha under ff. */
+const glass = (t) => /^#[0-9a-f]{6}(?!ff)[0-9a-f]{2}$/i.test(t?.background ?? "");
+
+/** The colour without its alpha. */
+const opaque = (color) => (/^#[0-9a-f]{8}$/i.test(color ?? "") ? color.slice(0, 7) : color);
+
 /** The element as a drag source of these files into a terminal, which types their paths; a Herdr older than 0.1.16 has none. */
 export function dragPaths(el, paths) {
   return typeof el.drag_paths === "function" && paths.length ? el.drag_paths(paths) : el;
 }
 
+/** `color` at this opacity, for tints (a 15% destructive behind its text); a colour with an alpha of its own keeps it. */
 export function alpha(color, a) {
   if (!color?.startsWith("#")) return color;
-  const hex = color.length === 9 ? color.slice(0, 7) : color.slice(0, 7);
-  return hex + Math.round(Math.max(0, Math.min(1, a)) * 255).toString(16).padStart(2, "0");
+  const own = color.length === 9 ? parseInt(color.slice(7), 16) / 255 : 1;
+  return color.slice(0, 7) + Math.round(Math.max(0, Math.min(1, a)) * own * 255).toString(16).padStart(2, "0");
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -208,7 +230,7 @@ const BUTTON = {
   outline: (k) => ({ bg: k.background, fg: k.foreground, border: k.input, hover: (s) => s.bg(k.accent) }),
   ghost: (k) => ({ fg: k.foreground, hover: (s) => s.bg(k.accent) }),
   // The background's color on the red reads in both themes: dark themes' red is light, white on it washes out.
-  destructive: (k) => ({ bg: k.destructive, fg: k.background, hover: (s) => s.opacity(0.9) }),
+  destructive: (k) => ({ bg: k.destructive, fg: k.paper, hover: (s) => s.opacity(0.9) }),
   link: (k) => ({ fg: k.foreground, hover: (s) => s.underline() }),
 };
 const SIZE = { default: [32, 12, TEXT.base, 16], sm: [28, 10, TEXT.sm, 14], lg: [36, 16, TEXT.base, 16], icon: [32, 0, TEXT.base, 16], "icon-sm": [28, 0, TEXT.sm, 14] };
@@ -422,7 +444,10 @@ export function ErrorState({ title = "Something went wrong", message, onRetry } 
 /** A section label above a group: small, medium weight, muted; a count and an action at the right. */
 export function SectionHeader(text, { count, action, id } = {}) {
   const k = tokens();
-  let el = h_flex().h(28).px(8).gap(6).items_center().text_size(TEXT.sm).font_medium().text_color(k.mutedFg).child(text);
+  // Over Daylight's sky a section's name is a small uppercase label, as the sky's own captions are.
+  let el = h_flex().h(28).px(8).gap(6).items_center().font_medium().text_color(k.sky ? k.dim : k.mutedFg)
+    .text_size(k.sky ? TEXT.xs : TEXT.sm)
+    .child(k.sky ? String(text).toUpperCase() : text);
   if (count !== undefined) el = el.child(div().text_color(k.dim).child(String(count)));
   if (action) el = el.child(div().flex_1()).child(action);
   return id ? el.id(id) : el;
@@ -1283,7 +1308,15 @@ export function StatTile(id, { label, value, delta, deltaGood, hint, spark, spar
         .items_end()
         .gap(8)
         .min_w(0)
-        .child(div().min_w(0).truncate().text_size(24).font_semibold().text_color(k.foreground).child(String(value ?? "—")))
+        .child(
+          div()
+            .min_w(0)
+            .truncate()
+            .text_color(k.foreground)
+            .when(Boolean(k.display), (e) => e.font_family(k.display).text_size(34).line_height(1))
+            .when(!k.display, (e) => e.text_size(24).font_semibold())
+            .child(String(value ?? "—")),
+        )
         .when(delta !== undefined && delta !== null, (e) => e.child(Badge(delta, deltaGood === undefined ? "secondary" : deltaGood ? "success" : "destructive"))),
     )
     .when(Boolean(hint), (e) => e.child(div().text_size(TEXT.xs).text_color(k.mutedFg).child(hint)))
@@ -1472,8 +1505,8 @@ export function Callout(id, { tone, label, icon, title, meta, body, actions = []
     .py(14)
     .rounded(RADIUS.lg)
     .border_1()
-    .border_color(alpha(c, 0.45))
-    .bg(alpha(c, 0.09));
+    .border_color(c === k.blocked ? k.needRing : alpha(c, 0.45))
+    .bg(c === k.blocked ? k.need : alpha(c, 0.09));
   return box.child(tag).child(text).child(buttons);
 }
 
@@ -1493,7 +1526,7 @@ export function ToneButton(id, { label, tone, kbd, icon, onClick, tooltip, size 
     .bg(c)
     .text_size(size === "sm" ? TEXT.sm : TEXT.base)
     .font_semibold()
-    .text_color(k.t.background)
+    .text_color(k.paper)
     .whitespace_nowrap()
     .cursor_pointer()
     .hover((s) => s.opacity(0.88))
@@ -1503,7 +1536,7 @@ export function ToneButton(id, { label, tone, kbd, icon, onClick, tooltip, size 
     });
   if (icon) el = el.child(Icon(icon, { size: 14 }));
   if (label) el = el.child(label);
-  if (kbd) el = el.child(div().px(4).rounded(RADIUS.sm).bg(alpha(k.t.background, 0.18)).text_size(TEXT.xs).child(kbd));
+  if (kbd) el = el.child(div().px(4).rounded(RADIUS.sm).bg(alpha(k.paper, 0.18)).text_size(TEXT.xs).child(kbd));
   if (tooltip) el = el.tooltip(tooltip);
   return el;
 }
@@ -1613,7 +1646,7 @@ export function Toggle(id, on, onToggle, { tooltip } = {}) {
     .when(on, (e) => e.justify_end())
     .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
     .on_click((_e, cx) => onToggle(cx))
-    .child(div().size(14).rounded(7).bg(on ? k.primaryFg : k.background).shadow_sm());
+    .child(div().size(14).rounded(7).bg(on ? k.primaryFg : k.paper).shadow_sm());
   if (tooltip) el = el.tooltip(tooltip);
   return el;
 }
@@ -1647,7 +1680,7 @@ export function CornerCount(n, { tone, top = 1, right = 1, id } = {}) {
     .bg(c)
     .text_size(CAPTION)
     .font_semibold()
-    .text_color(k.t.background)
+    .text_color(k.paper)
     .child(n > 99 ? "99+" : String(n));
   if (id) el = el.id(id);
   return el;

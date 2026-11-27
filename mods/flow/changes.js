@@ -265,7 +265,7 @@ export default class Changes {
       .id("flow-changes")
       .size_full()
       .min_h(0)
-      .bg(k.background)
+      .bg(k.sheet)
       .text_color(k.foreground)
       .child(
         h_flex()

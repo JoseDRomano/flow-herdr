@@ -122,7 +122,7 @@ export function inkOn(color, fallback) {
  *  `big` draws a tall bar with its figure written inside it. */
 export function QuotaRow(q, { id, labelW = 64, compact = false, big = false, onClick, tooltip, label, mono = false } = {}) {
   const k = tokens();
-  const tone = mono ? alpha(k.foreground, 0.6) : (k[barTone(q)] ?? k.success);
+  const tone = mono ? alpha(k.foreground, 0.6) : barTone(q) === "success" ? k.quota : (k[barTone(q)] ?? k.success);
   const p = Math.max(0, Math.min(100, fullness(q)));
   const known = (q.percent !== null && q.percent !== undefined) || q.status === "rejected";
   const stale = q.state === "stale";

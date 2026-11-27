@@ -586,7 +586,7 @@ function nodeBox(id, item, k, scale, X, Y, z, hovered, onHover, onClick, active)
   // A diamond's corner is empty: its mark sits on the upper right edge instead.
   const [mr, mt] = n.shape === "diamond" ? [w * 0.25 - d / 2, h * 0.25 - d / 2] : [-d / 3, -d / 3];
   const mark = status === "done"
-    ? div().absolute().right(mr).top(mt).size(d).rounded_full().bg(k.done).flex().items_center().justify_center().text_size(d * 0.62).font_semibold().text_color(k.background).child("✓")
+    ? div().absolute().right(mr).top(mt).size(d).rounded_full().bg(k.done).flex().items_center().justify_center().text_size(d * 0.62).font_semibold().text_color(k.paper).child("✓")
     : div().id(`${id}-a-${n.id}`).absolute().right(mr).top(mt).size(d * 0.7).rounded_full().bg(active).loop("opacity", { from: 0.45, to: 1, period: 1600 });
   return box.child(mark);
 }

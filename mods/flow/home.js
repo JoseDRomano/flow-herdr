@@ -629,7 +629,7 @@ export default class Home {
       .id("home-root")
       .size_full()
       .relative()
-      .bg(k.background)
+      .bg(k.sheet)
       .track_focus(this.handle)
       .on_key_down((e, cx) => {
         if (this.key(e, cx)) cx.stop_propagation();
@@ -718,7 +718,7 @@ export default class Home {
       .id("home-root")
       .size_full()
       .relative()
-      .bg(k.background)
+      .bg(k.sheet)
       .child(
         v_flex()
           .id("home-install")
@@ -800,7 +800,7 @@ export default class Home {
       .w_full()
       .gap(12)
       .items_end()
-      .child(
+      .child(k.display ? this.hero(cols, now, narrow) :
         v_flex()
           .flex_1()
           .min_w(0)
@@ -826,6 +826,28 @@ export default class Home {
             }),
           ),
       );
+  }
+
+  /** The greeting in the look's display face, then how many agents need you as one big numeral and the fleet under it. */
+  hero(cols, now, narrow) {
+    const k = tokens();
+    const needs = cols.all.needs.length;
+    const working = cols.all.working.length;
+    const all = needs + working + cols.all.done.length;
+    const says = needs ? `${needs === 1 ? "agent needs" : "agents need"} you` : `agents need you · ${working} working`;
+    return v_flex()
+      .flex_1()
+      .min_w(0)
+      .gap(6)
+      .child(div().font_family(k.display).italic().text_size(narrow ? 26 : 30).text_color(k.foreground).child(greeting(now)))
+      .child(
+        h_flex()
+          .gap(14)
+          .items_end()
+          .child(div().font_family(k.display).text_size(narrow ? 64 : 84).line_height(0.9).text_color(k.foreground).child(String(needs)))
+          .child(div().max_w(180).pb(8).whitespace_normal().text_size(TEXT.base).text_color(k.mutedFg).child(says)),
+      )
+      .child(div().truncate().text_size(TEXT.base).text_color(k.mutedFg).child(`${plural(all, "agent")} · ${needs ? `${needs} ${needs === 1 ? "needs" : "need"} you` : "nothing needs you"}`));
   }
 
   /** The numbers across the top, as a SaaS dashboard opens: agents, reviews, PRs, what shipped, spend. */
